@@ -1,5 +1,9 @@
 # Stackonomics — CSC270 Team Project
 
+> **Current phase: Phase 1 — Complete.** Stack chosen, sample Rails app
+> with styled Home / About / Contact pages is in place and ready to demo.
+> See the [Phase status](#phase-status) table below for the roadmap.
+
 Full-stack web app built across the CSC270 phase assignments. We chose
 **Ruby on Rails** as our solution stack and treat the project as a single
 evolving application — each phase adds new features on top of the previous
@@ -13,9 +17,12 @@ one rather than starting from scratch.
 
 ```
 CSC270_Stackonomics/                   # repo root
-├── Assignment_Refs/                   # original phase rubrics (PNG/PDF)
+├── Assignment_Refs/                   # original phase rubrics (PNG)
 │   ├── Phase_1.png
-│   └── Phase_2.png
+│   ├── Phase_2.png
+│   ├── Phase_3.png
+│   ├── Phase_4.png
+│   └── Phase_5.png
 ├── presentations/                     # demo / class presentations
 │   └── Stackanomics.pptx
 ├── app/, bin/, config/, db/, ...      # the Rails 8 application
@@ -38,12 +45,13 @@ CSC270_Stackonomics/                   # repo root
 
 ## Phase status
 
-| Phase | Status      | Tag                  | What's included                                        |
-| ----- | ----------- | -------------------- | ------------------------------------------------------ |
-| 1     | Complete    | `phase-1-submission` (tag at submission time) | Stack chosen, sample app with Home / About / Contact pages, Tailwind styling |
-| 2     | Not started | _tbd_                | _tbd (see `Assignment_Refs/Phase_2.png`)_              |
-| 3     | Not started | _tbd_                | _tbd_                                                  |
-| 4     | Not started | _tbd_                | _tbd_                                                  |
+| Phase | Status         | Tag                                           | What's included                                                                |
+| ----- | -------------- | --------------------------------------------- | ------------------------------------------------------------------------------ |
+| 1     | **Complete**   | `phase-1-submission` (tag at submission time) | Stack chosen, sample app with Home / About / Contact pages, Tailwind styling   |
+| 2     | Not started    | _tbd_                                         | _tbd (see `Assignment_Refs/Phase_2.png`)_                                      |
+| 3     | Not started    | _tbd_                                         | _tbd (see `Assignment_Refs/Phase_3.png`)_                                      |
+| 4     | Not started    | _tbd_                                         | _tbd (see `Assignment_Refs/Phase_4.png`)_                                      |
+| 5     | Not started    | _tbd_                                         | _tbd (see `Assignment_Refs/Phase_5.png`)_                                      |
 
 ### Phase 1 — Sample App / Stack Setup
 
