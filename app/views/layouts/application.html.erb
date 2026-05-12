@@ -1,28 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <title><%= content_for(:title) || "Sample App" %></title>
+    <title><%= content_for(:title) || "Ruby on Rails Sample App" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="Sample App">
+    <meta name="application-name" content="RoR Sample App">
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 
     <%= yield :head %>
 
-    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
-    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
-
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
 
-    <%# Includes all stylesheet files in app/assets/stylesheets %>
-    <%= stylesheet_link_tag :app %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
   </head>
 
-  <body>
-    <%= yield %>
+  <body class="min-h-screen bg-slate-50 text-slate-800 antialiased flex flex-col">
+    <header class="bg-gradient-to-r from-rose-600 to-red-700 text-white shadow-lg">
+      <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <%= link_to root_path, class: "flex items-center gap-3 group" do %>
+          <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/15 ring-1 ring-white/30 group-hover:bg-white/25 transition">
+            <span class="font-extrabold text-lg tracking-tight">R</span>
+          </span>
+          <span class="text-xl font-bold tracking-tight">Ruby on Rails &mdash; Phase 1</span>
+        <% end %>
+
+        <nav class="flex items-center gap-1 sm:gap-2 text-sm font-medium">
+          <%= link_to "Home",    root_path,    class: "px-3 py-2 rounded-md hover:bg-white/15 transition #{'bg-white/20' if current_page?(root_path)}" %>
+          <%= link_to "About",   about_path,   class: "px-3 py-2 rounded-md hover:bg-white/15 transition #{'bg-white/20' if current_page?(about_path)}" %>
+          <%= link_to "Contact", contact_path, class: "px-3 py-2 rounded-md hover:bg-white/15 transition #{'bg-white/20' if current_page?(contact_path)}" %>
+        </nav>
+      </div>
+    </header>
+
+    <% if notice.present? %>
+      <div class="max-w-6xl mx-auto w-full px-6 mt-4">
+        <div class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+          <%= notice %>
+        </div>
+      </div>
+    <% end %>
+
+    <main class="flex-1 w-full">
+      <%= yield %>
+    </main>
+
+    <footer class="mt-16 bg-slate-900 text-slate-300">
+      <div class="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p class="text-sm">&copy; <%= Date.current.year %> CSC270 Team &mdash; Ruby on Rails Sample App</p>
+        <p class="text-xs text-slate-400">Built with Rails <%= Rails.version %> &middot; Tailwind CSS</p>
+      </div>
+    </footer>
   </body>
 </html>
