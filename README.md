@@ -1,92 +1,97 @@
-# CSC270 Phase 1 — Ruby on Rails Sample App
+# Stackonomics — CSC270 Team Project
 
-Phase 1 proof-of-concept for our CSC270 project. We chose **Ruby on Rails** as
-our full-stack solution. This Phase 1 deliverable is a small Rails app with a
-shared layout and three styled static pages — Home, About the Team, and
-Contact Us.
+Full-stack web app built across the CSC270 phase assignments. We chose
+**Ruby on Rails** as our solution stack and treat the project as a single
+evolving application — each phase adds new features on top of the previous
+one rather than starting from scratch.
+
+> **Repo strategy:** one Rails app, one git history. Each phase is a set of
+> commits (and a tag like `phase-1-submission`) on `main`. To produce a
+> per-phase submission zip, we `git archive` from the matching tag.
+
+## Repository layout
+
+```
+CSC270_Stackonomics/                   # repo root
+├── Assignment_Refs/                   # original phase rubrics (PNG/PDF)
+│   ├── Phase_1.png
+│   └── Phase_2.png
+├── presentations/                     # demo / class presentations
+│   └── Stackanomics.pptx
+├── app/, bin/, config/, db/, ...      # the Rails 8 application
+├── Gemfile / Gemfile.lock
+├── .gitignore
+└── README.md                          # this file
+```
 
 ## Stack
 
-| Layer            | Choice                              |
-| ---------------- | ----------------------------------- |
-| Framework        | Ruby on Rails 8.1                   |
-| Language         | Ruby 4.0                            |
-| View layer       | Embedded Ruby (ERB)                 |
+| Layer            | Choice                                 |
+| ---------------- | -------------------------------------- |
+| Framework        | Ruby on Rails 8.1                      |
+| Language         | Ruby 4.0                               |
+| View layer       | Embedded Ruby (ERB)                    |
 | Styling          | Tailwind CSS 4 (via tailwindcss-rails) |
-| Asset pipeline   | Propshaft                           |
-| Database         | SQLite 3 (default; not yet used)    |
-| Web server       | Puma                                |
+| Asset pipeline   | Propshaft                              |
+| Database         | SQLite 3 (planned for later phases)    |
+| Web server       | Puma                                   |
 
-## Pages
+## Phase status
 
-| Route       | Controller / Action          | What it does                                              |
-| ----------- | ---------------------------- | --------------------------------------------------------- |
-| `/`         | `pages#home`                 | Landing page introducing the chosen stack                 |
-| `/about`    | `pages#about`                | Team bios with portrait images                            |
-| `/contact`  | `pages#contact`              | Non-functional contact form (renders + posts to itself)   |
-| `POST /contact` | `pages#submit_contact`   | Just shows a flash notice; nothing is persisted           |
+| Phase | Status      | Tag                  | What's included                                        |
+| ----- | ----------- | -------------------- | ------------------------------------------------------ |
+| 1     | Complete    | `phase-1-submission` (tag at submission time) | Stack chosen, sample app with Home / About / Contact pages, Tailwind styling |
+| 2     | Not started | _tbd_                | _tbd (see `Assignment_Refs/Phase_2.png`)_              |
+| 3     | Not started | _tbd_                | _tbd_                                                  |
+| 4     | Not started | _tbd_                | _tbd_                                                  |
 
-Every page includes:
+### Phase 1 — Sample App / Stack Setup
 
-- A shared header / nav / footer (`app/views/layouts/application.html.erb`)
-- At least a couple of paragraphs of body copy
-- At least one image (SVG, in `app/assets/images/`)
-- Tailwind-based responsive styling
+| Route           | Controller / Action      | What it does                                              |
+| --------------- | ------------------------ | --------------------------------------------------------- |
+| `/`             | `pages#home`             | Landing page introducing the chosen stack                 |
+| `/about`        | `pages#about`            | Team bios with portrait images                            |
+| `/contact`      | `pages#contact`          | Non-functional contact form                               |
+| `POST /contact` | `pages#submit_contact`   | Flashes a notice; nothing is persisted                    |
 
-## Project layout (the files we wrote/edited)
-
-```
-sample_app/
-├── app/
-│   ├── controllers/pages_controller.rb       # Home / About / Contact actions
-│   ├── views/
-│   │   ├── layouts/application.html.erb      # Shared nav + footer + Tailwind
-│   │   └── pages/
-│   │       ├── home.html.erb
-│   │       ├── about.html.erb
-│   │       └── contact.html.erb
-│   └── assets/
-│       ├── images/                           # SVG hero, team, contact illustrations
-│       └── tailwind/application.css          # Tailwind v4 entry point
-├── config/routes.rb                          # Maps URLs to PagesController
-└── README.md
-```
+Each page has a shared header / footer (`app/views/layouts/application.html.erb`),
+a couple of paragraphs of body copy, and at least one image
+(`app/assets/images/`).
 
 ## Running the app locally
 
 Prereqs: Ruby 4.0, Bundler, and the user gem `bin` directory on `PATH`.
 
 ```bash
-cd sample_app
 bundle install
 bin/rails tailwindcss:build          # one-time CSS build
-bin/rails server -p 3000
+bin/rails server -p 3000             # or `bin/dev` for live CSS rebuild
 ```
 
 Then open <http://localhost:3000>.
 
-For an auto-rebuilding dev workflow you can use `bin/dev` instead, which runs
-both Puma and `tailwindcss:watch` via Foreman.
+## Producing a phase submission zip
 
-## Submission
-
-Per the assignment, zip the project root using the naming convention
-`TeamName_RubyOnRails_Phase1.zip` (e.g. `Team1_RubyOnRails_Phase1.zip`).
-
-From PowerShell, in the `Phase_1` folder:
+When a phase is finished and tagged (e.g. `phase-1-submission`), generate
+the submission zip from the tag — no manual file copying required:
 
 ```powershell
-Compress-Archive -Path .\sample_app\* -DestinationPath .\Team#_RubyOnRails_Phase1.zip
+git archive --format=zip phase-1-submission -o ..\Stackonomics_RubyOnRails_Phase1.zip
 ```
 
-## Phase 1 rubric checklist
+This produces a clean zip of the project at the tagged state, with no
+`.git/` history baggage. Rename per the assignment convention
+(`TeamName_SolutionStack_PhaseN.zip`).
 
-- [x] Stack chosen and set up (Ruby on Rails)
-- [x] At least 2–3 working static pages (Home, About, Contact)
-- [x] Pages styled with CSS (Tailwind CSS)
-- [x] Each page includes a couple of paragraphs of text
-- [x] Each page includes at least one image
-- [x] Home page = landing/info about the stack
-- [x] About page = team member bios + pictures
-- [x] Contact page = non-functional web form
-- [x] App boots cleanly with no crashes
+## Working on a new phase
+
+1. Pull latest `main`.
+2. Branch off: `git checkout -b phase-N/<feature-name>`.
+3. Implement and test locally.
+4. Open a PR back into `main`. Squash or merge per team preference.
+5. When the phase is complete and merged into `main`, tag the submission
+   commit:
+   ```bash
+   git tag -a phase-N-submission -m "Phase N submission"
+   git push origin phase-N-submission
+   ```
