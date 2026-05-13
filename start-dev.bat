@@ -1,32 +1,27 @@
 @echo off
-REM Bedrock / Stackonomics one-click dev launcher.
-REM Double-click this file in File Explorer to start the Rails server and the
-REM Tailwind watcher together. Closing the window stops both processes.
+REM Bedrock / Stackonomics one-click setup + launcher.
+REM
+REM On a cold machine this installs Ruby + the build toolchain + gems + the
+REM database the first time it runs (10-15 minutes), then starts the server.
+REM Subsequent runs skip everything that's already done and launch in seconds.
+REM
+REM If Windows SmartScreen warns "Windows protected your PC", click
+REM "More info" and then "Run anyway" - this batch file is just a wrapper
+REM around scripts\setup-and-run.ps1, both of which are plain text and
+REM readable in any editor.
 
 setlocal
 cd /d "%~dp0"
 
-where ruby >nul 2>nul
-if errorlevel 1 (
-    echo.
-    echo [start-dev] Ruby was not found on PATH.
-    echo [start-dev] Install Ruby 4.0+ from https://rubyinstaller.org and reopen this window.
-    echo.
-    pause
-    exit /b 1
-)
-
 if "%PORT%"=="" set PORT=3000
 
-echo.
-echo === Starting Bedrock dev server on http://localhost:%PORT% ===
-echo Press Ctrl+C in this window to stop the server.
-echo.
-
-ruby bin\dev
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\setup-and-run.ps1" -Port %PORT%
 set EXITCODE=%ERRORLEVEL%
 
-echo.
-echo === Server stopped (exit code %EXITCODE%) ===
-pause
+if not "%EXITCODE%"=="0" (
+    echo.
+    echo === Setup/launcher exited with code %EXITCODE% ===
+    pause
+)
+
 exit /b %EXITCODE%

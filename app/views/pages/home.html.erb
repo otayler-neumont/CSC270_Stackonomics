@@ -1,4 +1,4 @@
-<% content_for :title, "Bedrock — Gems, Metals & Mines" %>
+<% content_for :title, "Bedrock - Gems, Metals & Mines" %>
 
 <%# Hero %>
 <section class="bg-gradient-to-b from-stone-100 via-stone-50 to-stone-100 border-b border-stone-200">
@@ -11,15 +11,14 @@
         A field guide to what's <span class="text-amber-700">under our feet</span>.
       </h1>
       <p class="mt-5 text-lg text-slate-700 leading-relaxed">
-        <strong>Bedrock</strong> is a static, three-section guide to the materials we
-        dig out of the planet — the <em>gems</em> that became symbols of wealth,
-        the <em>metals</em> that built every age of civilization, and the
-        <em>mines</em> where those raw materials still come from today.
+        <strong>Bedrock</strong> is a small reference site about
+        <em>gems</em>, <em>metals</em>, and the <em>mines</em> they come from.
       </p>
       <p class="mt-4 text-base text-slate-600 leading-relaxed">
-        Built as our Phase 1 sample app on Ruby on Rails. No database yet, no
-        accounts — just clean pages, real content, and a shared layout we can
-        grow into a full application over the rest of the term.
+        Built on Ruby on Rails as our Phase 1 sample app for CSC270. The page
+        data is hardcoded in the controller right now, and the tip form at the
+        bottom doesn't actually save anything. Phase 2 wires both up to a
+        real database.
       </p>
 
       <div class="mt-7 flex flex-wrap gap-3">
@@ -87,9 +86,9 @@
 
 <%# Three topic cards %>
 <section class="max-w-6xl mx-auto px-6 py-14">
-  <h2 class="text-2xl sm:text-3xl font-bold text-slate-900">Three layers of this site.</h2>
+  <h2 class="text-2xl sm:text-3xl font-bold text-slate-900">What's on the site.</h2>
   <p class="mt-3 text-slate-700 max-w-3xl leading-relaxed">
-    Each section is its own page — pick a thread to pull.
+    Three sections, one page each.
   </p>
 
   <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -103,8 +102,8 @@
       </div>
       <h3 class="mt-5 text-xl font-bold text-slate-900 group-hover:text-emerald-700 transition">Gems</h3>
       <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-        A dozen of the gems people obsess over — their hardness on the Mohs
-        scale, the trace elements that color them, and where each one comes from.
+        Twelve gems with Mohs hardness, what gives each its color, and where
+        it's typically mined.
       </p>
       <span class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 group-hover:gap-2 transition-all">Open gems <span aria-hidden="true">→</span></span>
     <% end %>
@@ -120,8 +119,8 @@
       </div>
       <h3 class="mt-5 text-xl font-bold text-slate-900 group-hover:text-amber-700 transition">Metals</h3>
       <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-        Periodic-tile cards for the metals that move the world — precious,
-        base, and the strategic ones now powering batteries, magnets, and jets.
+        Fifteen metals laid out as periodic-table tiles, grouped into precious,
+        base, and strategic.
       </p>
       <span class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-amber-700 group-hover:gap-2 transition-all">Open metals <span aria-hidden="true">→</span></span>
     <% end %>
@@ -135,8 +134,8 @@
       </div>
       <h3 class="mt-5 text-xl font-bold text-slate-900 group-hover:text-slate-700 transition">Mines</h3>
       <p class="mt-2 text-sm text-slate-600 leading-relaxed">
-        Ten landmark mines from five continents — the deepest, the widest, the
-        oldest, and the ones whose ore quietly built whole economies.
+        Ten landmark mines from five continents, grouped by region. Some go
+        4 km underground; one is wide enough to see from orbit.
       </p>
       <span class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-slate-700 group-hover:gap-2 transition-all">Open mines <span aria-hidden="true">→</span></span>
     <% end %>
@@ -147,8 +146,8 @@
 <section class="bg-gradient-to-b from-slate-900 to-slate-800 text-stone-100">
   <div class="max-w-6xl mx-auto px-6 py-14">
     <div class="flex items-center justify-between flex-wrap gap-3">
-      <h2 class="text-2xl sm:text-3xl font-bold">From the field, today.</h2>
-      <p class="text-sm text-stone-400">A randomized highlight every time you load the page.</p>
+      <h2 class="text-2xl sm:text-3xl font-bold">Featured today.</h2>
+      <p class="text-sm text-stone-400">Reload the page for a different gem, metal, and mine.</p>
     </div>
 
     <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -208,9 +207,9 @@
       </span>
       <h2 class="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">Spot something we should add?</h2>
       <p class="mt-4 text-slate-700 leading-relaxed">
-        A gem we missed, a metal worth a deeper write-up, a mine with a wild
-        story — drop a quick note. This is a Phase 1 demo form, so nothing is
-        actually saved yet, but it'll be wired up to a real model in a later phase.
+        Know a gem we should add, or a mine with a good story? Drop a note
+        below. The form doesn't actually save anything in Phase 1; we'll wire
+        it up to a model next phase.
       </p>
     </div>
 
@@ -248,7 +247,7 @@
         <div class="flex items-center gap-3">
           <%= f.submit "Send tip",
                 class: "bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-md font-semibold shadow transition cursor-pointer" %>
-          <span class="text-xs text-stone-500">Nothing is actually saved in this Phase 1 demo.</span>
+          <span class="text-xs text-stone-500">Phase 1: nothing is saved yet.</span>
         </div>
       <% end %>
     </div>
