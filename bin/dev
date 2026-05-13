@@ -1,16 +1,110 @@
-#!/usr/bin/env sh
+#!/usr/bin/env ruby.exe
+# Cross-platform development launcher for Bedrock / Stackonomics.
+#
+# Reads Procfile.dev and runs every "name: command" line as a child process,
+# streaming each child's output with a colored [name] prefix. Ctrl+C cleanly
+# stops every child on Windows, macOS, and Linux. No foreman required.
 
-if ! gem list foreman -i --silent; then
-  echo "Installing foreman..."
-  gem install foreman
-fi
+require "fileutils"
 
-# Default to port 3000 if not specified
-export PORT="${PORT:-3000}"
+APP_ROOT = File.expand_path("..", __dir__)
+PROCFILE = File.join(APP_ROOT, "Procfile.dev")
+WINDOWS  = Gem.win_platform?
 
-# Let the debug gem allow remote connections,
-# but avoid loading until `debugger` is called
-export RUBY_DEBUG_OPEN="true"
-export RUBY_DEBUG_LAZY="true"
+# ANSI colors cycled through for each labeled process.
+COLORS = ["\e[36m", "\e[33m", "\e[35m", "\e[32m", "\e[34m", "\e[31m"].freeze
+RESET  = "\e[0m"
 
-exec foreman start -f Procfile.dev "$@"
+def parse_procfile(path)
+  abort "Procfile.dev not found at #{path}" unless File.exist?(path)
+
+  File.readlines(path).each_with_object({}) do |line, procs|
+    line = line.strip
+    next if line.empty? || line.start_with?("#")
+
+    name, command = line.split(":", 2).map(&:strip)
+    next if name.nil? || command.nil? || command.empty?
+
+    procs[name] = command
+  end
+end
+
+def label_width(names)
+  names.map(&:length).max || 0
+end
+
+def stream_output(io, name, color, width)
+  Thread.new do
+    io.each_line do |line|
+      prefix = "#{color}[#{name.ljust(width)}]#{RESET}"
+      $stdout.write("#{prefix} #{line}")
+      $stdout.flush
+    end
+  rescue IOError
+    # Stream closed when the child exited; nothing to do.
+  end
+end
+
+def stop_all(pids)
+  pids.each do |pid|
+    if WINDOWS
+      # taskkill /T kills the whole process tree (catches grandchildren like
+      # the native tailwindcss.exe binary that bin/rails tailwindcss:watch
+      # spawns underneath itself).
+      system("taskkill", "/F", "/T", "/PID", pid.to_s, out: File::NULL, err: File::NULL)
+    else
+      Process.kill("TERM", pid)
+    end
+  rescue Errno::ESRCH, Errno::EINVAL, Errno::EPERM
+    # Already gone or signal not supported on this platform.
+  end
+end
+
+Dir.chdir(APP_ROOT) do
+  ENV["PORT"] ||= "3000"
+  ENV["RUBY_DEBUG_OPEN"] = "true"
+  ENV["RUBY_DEBUG_LAZY"] = "true"
+
+  procs = parse_procfile(PROCFILE)
+  abort "Procfile.dev has no runnable entries." if procs.empty?
+
+  width = label_width(procs.keys)
+  pids = []
+  threads = []
+  shutting_down = false
+
+  procs.each_with_index do |(name, command), index|
+    color = COLORS[index % COLORS.length]
+    rd, wr = IO.pipe
+    pid = Process.spawn(command, out: wr, err: wr)
+    wr.close
+    pids << pid
+    threads << stream_output(rd, name, color, width)
+
+    banner = "starting `#{command}` (pid #{pid})"
+    $stdout.write("#{color}[#{name.ljust(width)}]#{RESET} #{banner}\n")
+  end
+
+  shutdown = lambda do
+    next if shutting_down
+    shutting_down = true
+    $stdout.write("\n#{COLORS[0]}[bin/dev]#{RESET} shutting down...\n")
+    stop_all(pids)
+  end
+
+  trap("INT")  { shutdown.call }
+  trap("TERM") { shutdown.call } unless WINDOWS
+
+  exit_code = 0
+  pids.each do |pid|
+    _, status = Process.wait2(pid)
+    exit_code = status.exitstatus || 1 if status && !status.success? && exit_code.zero?
+  rescue Errno::ECHILD
+    # Already reaped.
+  end
+
+  shutdown.call
+  threads.each { |t| t.join(2) }
+
+  exit(exit_code)
+end

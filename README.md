@@ -80,13 +80,43 @@ risk in `app/assets/images/`.
 
 Prereqs: Ruby 4.0, Bundler, and the user gem `bin` directory on `PATH`.
 
+First-time setup (any OS):
+
 ```bash
 bundle install
-bin/rails tailwindcss:build          # one-time CSS build
-bin/rails server -p 3000             # or `bin/dev` for live CSS rebuild
+bin/rails db:prepare
 ```
 
+### One-click launch
+
+Pick whichever fits your shell. All three start the Rails server **and** the
+Tailwind CSS watcher together, with colored `[web]` / `[css]` output, and
+shut both down cleanly on Ctrl+C.
+
+| Platform / shell      | Command                                                       |
+| --------------------- | ------------------------------------------------------------- |
+| Windows (File Explorer) | Double-click **`start-dev.bat`** in the repo root           |
+| Windows (PowerShell)  | `.\dev.ps1`        _(use `-Port 4000` to override the port)_  |
+| Windows (cmd)         | `start-dev.bat`                                               |
+| macOS / Linux         | `bin/dev`                                                     |
+
 Then open <http://localhost:3000>.
+
+> **Why not `foreman`?** The Rails-default `bin/dev` is a POSIX shell script
+> that needs `foreman` and doesn't run from PowerShell. We replaced it with a
+> small cross-platform Ruby script (still `bin/dev`) that reads the same
+> `Procfile.dev` and spawns the processes natively — no extra gems and no sh
+> required.
+
+### Plain server (no CSS watcher)
+
+If you don't need live Tailwind rebuilds (e.g. the CSS hasn't changed since
+the last build), you can skip the launcher:
+
+```bash
+bin/rails tailwindcss:build          # one-time CSS build
+bin/rails server -p 3000
+```
 
 ## Producing a phase submission zip
 
