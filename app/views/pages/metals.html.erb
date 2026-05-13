@@ -1,0 +1,104 @@
+<% content_for :title, "Metals · Bedrock" %>
+
+<%
+  group_styles = {
+    "Precious"           => { accent: "amber",   chip: "bg-amber-100 text-amber-900 ring-amber-300/60",     tile: "bg-gradient-to-br from-amber-100 to-amber-300 border-amber-400" },
+    "Base"               => { accent: "stone",   chip: "bg-stone-200 text-stone-800 ring-stone-300/60",     tile: "bg-gradient-to-br from-stone-100 to-stone-300 border-stone-400" },
+    "Light & Strategic"  => { accent: "cyan",    chip: "bg-cyan-100 text-cyan-900 ring-cyan-300/60",        tile: "bg-gradient-to-br from-cyan-50 to-cyan-200 border-cyan-400" }
+  }
+
+  group_blurbs = {
+    "Precious"          => "Rare, dense, and stubbornly unreactive. We hoard them, wear them, and back currencies with them.",
+    "Base"              => "The workhorses. Cheap by precious-metal standards, but every building, wire, and pipe depends on them.",
+    "Light & Strategic" => "The metals modern technology is built on — aerospace alloys, EV batteries, magnets, and screens."
+  }
+%>
+
+<section class="bg-gradient-to-b from-stone-100 to-stone-50 border-b border-stone-200">
+  <div class="max-w-6xl mx-auto px-6 py-14">
+    <span class="inline-block text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800 bg-amber-100 ring-1 ring-amber-300/60 px-3 py-1 rounded-full">
+      Section 2 · Metals
+    </span>
+    <h1 class="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">The metals that move the world.</h1>
+    <p class="mt-4 max-w-3xl text-lg text-slate-700 leading-relaxed">
+      Roughly 75% of the elements on the periodic table are metals, but only a
+      few dozen show up in commercial quantities. Below: the ones you actually
+      meet — in your wiring, your phone, the steel beams holding up your
+      ceiling, and the catalytic converter under the car parked outside.
+    </p>
+  </div>
+</section>
+
+<% @metals_by_group.each do |group, metals| %>
+  <% style = group_styles[group] %>
+  <section class="max-w-6xl mx-auto px-6 py-12">
+    <header class="flex items-end justify-between flex-wrap gap-3">
+      <div>
+        <span class="inline-block text-[11px] font-semibold uppercase tracking-[0.18em] <%= style[:chip] %> ring-1 px-3 py-1 rounded-full">
+          <%= group %>
+        </span>
+        <h2 class="mt-3 text-2xl font-bold text-slate-900"><%= group %> metals</h2>
+        <p class="mt-2 text-slate-600 max-w-2xl"><%= group_blurbs[group] %></p>
+      </div>
+    </header>
+
+    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <% metals.each do |metal| %>
+        <article class="bg-white rounded-xl border border-stone-200 shadow-sm hover:shadow-lg transition overflow-hidden flex flex-col">
+          <div class="<%= style[:tile] %> border-b-2 p-5 flex items-start justify-between">
+            <div>
+              <div class="text-xs font-mono text-slate-800/80"><%= metal[:number] || "—" %></div>
+              <div class="mt-1 text-5xl font-extrabold tracking-tight text-slate-900"><%= metal[:symbol] %></div>
+              <div class="mt-1 text-sm font-semibold text-slate-800"><%= metal[:name] %></div>
+            </div>
+            <div class="text-right text-xs font-mono text-slate-800/80">
+              <% if metal[:density] %>
+                <div><span class="text-slate-700 font-semibold"><%= metal[:density] %></span> g/cm³</div>
+              <% end %>
+            </div>
+          </div>
+
+          <div class="p-5 flex-1 flex flex-col">
+            <dl class="text-sm text-slate-600 space-y-1.5">
+              <div><dt class="inline font-semibold text-slate-700">Uses:</dt> <dd class="inline"><%= metal[:uses] %></dd></div>
+              <div><dt class="inline font-semibold text-slate-700">Top producers:</dt> <dd class="inline"><%= metal[:top].join(", ") %></dd></div>
+            </dl>
+            <p class="mt-3 text-sm text-slate-600 italic leading-relaxed flex-1">"<%= metal[:fact] %>"</p>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<%# Closing note %>
+<section class="bg-gradient-to-b from-slate-900 to-slate-800 text-stone-100">
+  <div class="max-w-6xl mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div>
+      <h3 class="text-lg font-bold text-amber-300">Smelting vs. electrowinning</h3>
+      <p class="mt-2 text-sm text-stone-300 leading-relaxed">
+        Iron, copper, lead, tin, zinc — historically pulled out of their ores
+        by smelting (cooking with carbon to strip the oxygen). Aluminum, by
+        contrast, needs electrolysis at industrial scale, which is why
+        cheap aluminum is a 20th-century invention.
+      </p>
+    </div>
+    <div>
+      <h3 class="text-lg font-bold text-amber-300">By tonnage vs. by value</h3>
+      <p class="mt-2 text-sm text-stone-300 leading-relaxed">
+        Iron dominates by tonnage (~2 billion tonnes/yr). Gold barely registers
+        on that scale — yet a year's gold output is worth more than a year's
+        steel output. Mining is a tale of two scales.
+      </p>
+    </div>
+    <div>
+      <h3 class="text-lg font-bold text-amber-300">The "battery metals"</h3>
+      <p class="mt-2 text-sm text-stone-300 leading-relaxed">
+        Lithium, cobalt, nickel, manganese, and graphite are the
+        new precious. As EV production scales, the geography of mining
+        is shifting toward the Andean lithium triangle, the DRC copper-cobalt
+        belt, and Indonesian nickel laterites.
+      </p>
+    </div>
+  </div>
+</section>

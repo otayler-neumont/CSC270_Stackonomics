@@ -1,0 +1,101 @@
+<% content_for :title, "Gems · Bedrock" %>
+
+<%
+  # Map each gem tint to literal Tailwind classes so the JIT picks them up.
+  tint_styles = {
+    "slate"    => { bg: "from-slate-200 to-slate-400",    badge: "bg-slate-100 text-slate-800 ring-slate-300",       fill: "#e2e8f0", line: "#475569" },
+    "rose"     => { bg: "from-rose-200 to-rose-500",      badge: "bg-rose-100 text-rose-800 ring-rose-300",          fill: "#fda4af", line: "#9f1239" },
+    "blue"     => { bg: "from-blue-200 to-blue-600",      badge: "bg-blue-100 text-blue-800 ring-blue-300",          fill: "#93c5fd", line: "#1e3a8a" },
+    "emerald"  => { bg: "from-emerald-200 to-emerald-600", badge: "bg-emerald-100 text-emerald-800 ring-emerald-300", fill: "#6ee7b7", line: "#065f46" },
+    "fuchsia"  => { bg: "from-fuchsia-200 to-fuchsia-500", badge: "bg-fuchsia-100 text-fuchsia-800 ring-fuchsia-300", fill: "#f0abfc", line: "#86198f" },
+    "purple"   => { bg: "from-purple-200 to-purple-600",  badge: "bg-purple-100 text-purple-800 ring-purple-300",    fill: "#d8b4fe", line: "#581c87" },
+    "sky"      => { bg: "from-sky-200 to-sky-500",        badge: "bg-sky-100 text-sky-800 ring-sky-300",             fill: "#7dd3fc", line: "#075985" },
+    "cyan"     => { bg: "from-cyan-200 to-cyan-500",      badge: "bg-cyan-100 text-cyan-800 ring-cyan-300",          fill: "#67e8f9", line: "#155e75" },
+    "indigo"   => { bg: "from-indigo-200 to-indigo-600",  badge: "bg-indigo-100 text-indigo-800 ring-indigo-300",    fill: "#a5b4fc", line: "#312e81" },
+    "red"      => { bg: "from-red-200 to-red-600",        badge: "bg-red-100 text-red-800 ring-red-300",             fill: "#fca5a5", line: "#7f1d1d" },
+    "pink"     => { bg: "from-pink-200 to-pink-500",      badge: "bg-pink-100 text-pink-800 ring-pink-300",          fill: "#f9a8d4", line: "#9d174d" },
+    "teal"     => { bg: "from-teal-200 to-teal-500",      badge: "bg-teal-100 text-teal-800 ring-teal-300",          fill: "#5eead4", line: "#115e59" }
+  }
+%>
+
+<section class="bg-gradient-to-b from-stone-100 to-stone-50 border-b border-stone-200">
+  <div class="max-w-6xl mx-auto px-6 py-14">
+    <span class="inline-block text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800 bg-emerald-100 ring-1 ring-emerald-300/60 px-3 py-1 rounded-full">
+      Section 1 · Gems
+    </span>
+    <h1 class="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">A dozen stones worth digging for.</h1>
+    <p class="mt-4 max-w-3xl text-lg text-slate-700 leading-relaxed">
+      Gems are minerals (or, in opal and pearl's case, mineraloids) that happen to
+      be rare, durable, and beautiful enough that people will trade serious money
+      for them. Each card below lists where it forms, what colors it as it grows,
+      and where it usually comes out of the ground.
+    </p>
+  </div>
+</section>
+
+<%# Mohs scale visual %>
+<section class="max-w-6xl mx-auto px-6 py-12">
+  <div class="flex items-end justify-between flex-wrap gap-3">
+    <div>
+      <h2 class="text-2xl font-bold text-slate-900">The Mohs hardness scale</h2>
+      <p class="mt-2 text-slate-600 max-w-2xl">
+        A 10-step ladder of "what scratches what." A higher-ranked mineral always
+        scratches a lower one. Your fingernail is about 2.5; a steel knife, ~5.5.
+      </p>
+    </div>
+    <span class="text-xs text-stone-500 italic">Each gem's Mohs rank appears on its card.</span>
+  </div>
+
+  <ol class="mt-6 grid grid-cols-5 sm:grid-cols-10 gap-1 rounded-xl overflow-hidden ring-1 ring-stone-200 bg-white">
+    <% @mohs_scale.each do |step| %>
+      <%
+        rank_bg = case step[:rank]
+                  when 1..3 then "bg-stone-200"
+                  when 4..6 then "bg-stone-400"
+                  when 7..8 then "bg-amber-400"
+                  when 9    then "bg-amber-500"
+                  when 10   then "bg-amber-600"
+                  end
+      %>
+      <li class="<%= rank_bg %> px-2 py-3 text-center">
+        <div class="text-xs font-mono text-slate-900/70">Mohs <%= step[:rank] %></div>
+        <div class="mt-1 text-sm font-bold text-slate-900"><%= step[:mineral] %></div>
+        <div class="mt-1 text-[10px] text-slate-800/80 leading-tight"><%= step[:note] %></div>
+      </li>
+    <% end %>
+  </ol>
+</section>
+
+<%# Gem grid %>
+<section class="max-w-6xl mx-auto px-6 pb-16">
+  <h2 class="text-2xl font-bold text-slate-900">The gems</h2>
+  <p class="mt-2 text-slate-600 max-w-2xl">Twelve of the gems that show up most often in jewelry, museum cases, and pirate stories.</p>
+
+  <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <% @gems.each do |gem| %>
+      <% style = tint_styles[gem[:tint]] %>
+      <article class="bg-white rounded-xl border border-stone-200 shadow-sm hover:shadow-lg transition overflow-hidden flex flex-col">
+        <div class="bg-gradient-to-br <%= style[:bg] %> flex items-center justify-center py-8">
+          <svg viewBox="0 0 64 64" class="w-24 h-24 drop-shadow" aria-hidden="true">
+            <polygon points="32,6 56,26 32,58 8,26"  fill="<%= style[:fill] %>" stroke="<%= style[:line] %>" stroke-width="1.2"/>
+            <polyline points="8,26 32,34 56,26"      fill="none" stroke="<%= style[:line] %>" stroke-width="1"/>
+            <line     x1="20" y1="14" x2="32" y2="34" stroke="<%= style[:line] %>" stroke-width="0.8" opacity="0.7"/>
+            <line     x1="44" y1="14" x2="32" y2="34" stroke="<%= style[:line] %>" stroke-width="0.8" opacity="0.7"/>
+            <polygon points="20,14 32,6 44,14 32,26" fill="white" opacity="0.3"/>
+          </svg>
+        </div>
+        <div class="p-5 flex-1 flex flex-col">
+          <div class="flex items-baseline justify-between gap-2">
+            <h3 class="text-xl font-bold text-slate-900"><%= gem[:name] %></h3>
+            <span class="text-xs font-mono <%= style[:badge] %> ring-1 px-2 py-0.5 rounded-full">Mohs <%= gem[:mohs] %></span>
+          </div>
+          <dl class="mt-3 text-sm text-slate-600 space-y-1">
+            <div><dt class="inline font-semibold text-slate-700">Color:</dt> <dd class="inline"><%= gem[:color] %></dd></div>
+            <div><dt class="inline font-semibold text-slate-700">From:</dt> <dd class="inline"><%= gem[:origins].join(", ") %></dd></div>
+          </dl>
+          <p class="mt-3 text-sm text-slate-600 italic leading-relaxed flex-1">"<%= gem[:fact] %>"</p>
+        </div>
+      </article>
+    <% end %>
+  </div>
+</section>

@@ -1,0 +1,176 @@
+<% content_for :title, "Mines · Bedrock" %>
+
+<%
+  region_styles = {
+    "Africa"        => { chip: "bg-amber-100 text-amber-900 ring-amber-300/60",       dot: "bg-amber-500" },
+    "North America" => { chip: "bg-sky-100 text-sky-900 ring-sky-300/60",             dot: "bg-sky-500" },
+    "South America" => { chip: "bg-emerald-100 text-emerald-900 ring-emerald-300/60", dot: "bg-emerald-500" },
+    "Asia"          => { chip: "bg-rose-100 text-rose-900 ring-rose-300/60",          dot: "bg-rose-500" },
+    "Asia-Pacific"  => { chip: "bg-indigo-100 text-indigo-900 ring-indigo-300/60",    dot: "bg-indigo-500" }
+  }
+
+  type_icon = ->(type) {
+    case type
+    when /Open pit \+ underground/i then "open_and_under"
+    when /Open pit/i                then "open_pit"
+    when /Underground/i             then "underground"
+    else                                 "generic"
+    end
+  }
+%>
+
+<section class="bg-gradient-to-b from-stone-100 to-stone-50 border-b border-stone-200">
+  <div class="max-w-6xl mx-auto px-6 py-14 grid grid-cols-1 md:grid-cols-3 gap-10 items-center">
+    <div class="md:col-span-2">
+      <span class="inline-block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700 bg-slate-200 ring-1 ring-slate-300/60 px-3 py-1 rounded-full">
+        Section 3 · Mines
+      </span>
+      <h1 class="mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">Mines around the world.</h1>
+      <p class="mt-4 max-w-3xl text-lg text-slate-700 leading-relaxed">
+        Ten landmark mines from five continents — the deepest hole humans have
+        ever dug for gold, the widest one we've dug for copper, a diamond pit
+        wide enough to swallow helicopters, and the silver mountain that
+        bankrolled the Spanish Empire. They're still working.
+      </p>
+
+      <dl class="mt-7 grid grid-cols-3 gap-3 max-w-md">
+        <div class="bg-white rounded-lg ring-1 ring-stone-200 px-4 py-3 text-center">
+          <dt class="text-[11px] uppercase tracking-wide text-stone-500">Mines</dt>
+          <dd class="text-2xl font-extrabold text-slate-900"><%= @mines_by_region.values.flatten.size %></dd>
+        </div>
+        <div class="bg-white rounded-lg ring-1 ring-stone-200 px-4 py-3 text-center">
+          <dt class="text-[11px] uppercase tracking-wide text-stone-500">Regions</dt>
+          <dd class="text-2xl font-extrabold text-slate-900"><%= @mines_by_region.keys.size %></dd>
+        </div>
+        <div class="bg-white rounded-lg ring-1 ring-stone-200 px-4 py-3 text-center">
+          <dt class="text-[11px] uppercase tracking-wide text-stone-500">Commodities</dt>
+          <dd class="text-2xl font-extrabold text-slate-900">8+</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="flex justify-center">
+      <%# Stylized globe with dots %>
+      <svg viewBox="0 0 240 240" class="w-56 h-56" role="img" aria-label="Stylized globe with mine location dots">
+        <defs>
+          <radialGradient id="globe" cx="40%" cy="35%" r="65%">
+            <stop offset="0%"  stop-color="#bae6fd"/>
+            <stop offset="60%" stop-color="#38bdf8"/>
+            <stop offset="100%" stop-color="#0c4a6e"/>
+          </radialGradient>
+        </defs>
+        <circle cx="120" cy="120" r="100" fill="url(#globe)" stroke="#0f172a" stroke-width="2"/>
+
+        <g fill="#65a30d" opacity="0.85">
+          <path d="M80 60 Q 60 90 70 130 Q 90 150 100 120 Q 110 90 95 70 Z"/>
+          <path d="M130 50 Q 150 70 145 110 Q 140 140 160 150 Q 180 120 170 80 Q 155 55 130 50 Z"/>
+          <path d="M105 165 Q 95 195 115 200 Q 130 195 125 170 Z"/>
+        </g>
+
+        <g fill="#0f172a" opacity="0.2">
+          <ellipse cx="120" cy="120" rx="100" ry="20"/>
+        </g>
+
+        <g>
+          <circle cx="90"  cy="100" r="4" fill="#f59e0b"/>
+          <circle cx="155" cy="95"  r="4" fill="#f59e0b"/>
+          <circle cx="115" cy="175" r="4" fill="#f59e0b"/>
+          <circle cx="170" cy="135" r="4" fill="#f59e0b"/>
+          <circle cx="75"  cy="135" r="4" fill="#f59e0b"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<% @mines_by_region.each do |region, mines| %>
+  <% style = region_styles[region] || { chip: "bg-stone-100 text-stone-800 ring-stone-300/60", dot: "bg-stone-500" } %>
+  <section class="max-w-6xl mx-auto px-6 py-10">
+    <header class="flex items-center gap-3 flex-wrap">
+      <span class="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] <%= style[:chip] %> ring-1 px-3 py-1 rounded-full">
+        <span class="inline-block w-2 h-2 rounded-full <%= style[:dot] %>"></span>
+        <%= region %>
+      </span>
+      <span class="text-sm text-stone-500"><%= mines.size %> <%= "mine".pluralize(mines.size) %></span>
+    </header>
+
+    <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+      <% mines.each do |mine| %>
+        <article class="bg-white rounded-xl border border-stone-200 shadow-sm hover:shadow-lg transition p-6 flex gap-5">
+          <div class="shrink-0">
+            <div class="w-14 h-14 rounded-lg bg-slate-900 text-amber-300 flex items-center justify-center ring-1 ring-slate-700">
+              <% case type_icon.call(mine[:type]) %>
+              <% when "open_pit" %>
+                <svg viewBox="0 0 24 24" class="w-8 h-8" fill="currentColor" aria-hidden="true">
+                  <path d="M2 8 L22 8 L18 20 L6 20 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M5 12 L19 12" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+                  <path d="M7 16 L17 16" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+                </svg>
+              <% when "underground" %>
+                <svg viewBox="0 0 24 24" class="w-8 h-8" fill="currentColor" aria-hidden="true">
+                  <path d="M3 21 L3 9 L12 4 L21 9 L21 21 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M9 21 L9 14 Q 12 12 15 14 L15 21" fill="currentColor"/>
+                </svg>
+              <% when "open_and_under" %>
+                <svg viewBox="0 0 24 24" class="w-8 h-8" fill="currentColor" aria-hidden="true">
+                  <path d="M2 11 L22 11 L18 20 L6 20 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                  <rect x="10" y="3" width="4" height="6" fill="currentColor"/>
+                  <path d="M9 14 L15 14" stroke="currentColor" stroke-width="0.8"/>
+                </svg>
+              <% else %>
+                <svg viewBox="0 0 24 24" class="w-8 h-8" fill="currentColor" aria-hidden="true">
+                  <path d="M4 20 L20 20 L16 10 L12 6 L8 10 Z"/>
+                  <rect x="10" y="14" width="4" height="6" fill="#0f172a"/>
+                </svg>
+              <% end %>
+            </div>
+            <div class="mt-3 text-center">
+              <span class="text-[10px] uppercase tracking-wider text-stone-500"><%= mine[:type] %></span>
+            </div>
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline justify-between gap-3">
+              <h3 class="text-xl font-bold text-slate-900 truncate"><%= mine[:name] %></h3>
+              <span class="text-xs font-mono text-stone-500 shrink-0"><%= mine[:country] %></span>
+            </div>
+            <p class="mt-1 text-xs font-semibold uppercase tracking-wider text-amber-700"><%= mine[:commodity] %></p>
+            <p class="mt-3 text-sm text-slate-600 leading-relaxed">"<%= mine[:claim] %>"</p>
+          </div>
+        </article>
+      <% end %>
+    </div>
+  </section>
+<% end %>
+
+<section class="max-w-6xl mx-auto px-6 py-12">
+  <div class="bg-gradient-to-br from-amber-50 to-amber-100 ring-1 ring-amber-300/60 rounded-xl p-6 sm:p-8">
+    <h3 class="text-xl font-bold text-slate-900">Three ways to take it out of the ground</h3>
+    <div class="mt-5 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div>
+        <h4 class="text-sm font-bold uppercase tracking-wider text-amber-800">Open pit</h4>
+        <p class="mt-2 text-sm text-slate-700 leading-relaxed">
+          When ore sits close to the surface, you peel back the overburden and
+          spiral downward in benches. Cheap per tonne, but the hole is
+          permanent and visible from orbit. <em>e.g. Bingham Canyon, Mir.</em>
+        </p>
+      </div>
+      <div>
+        <h4 class="text-sm font-bold uppercase tracking-wider text-amber-800">Underground</h4>
+        <p class="mt-2 text-sm text-slate-700 leading-relaxed">
+          A shaft drops to the ore body and lateral drifts follow the vein.
+          Smaller footprint, much higher cost per tonne, and rock temperature
+          and pressure get serious past about 2 km. <em>e.g. Mponeng, Cerro Rico.</em>
+        </p>
+      </div>
+      <div>
+        <h4 class="text-sm font-bold uppercase tracking-wider text-amber-800">Hybrid + placer</h4>
+        <p class="mt-2 text-sm text-slate-700 leading-relaxed">
+          Many giants start as an open pit and then go underground to chase
+          deeper ore. Placer mining instead pans loose grains from rivers and
+          beaches — how gold rushes worked. <em>e.g. Grasberg, Carlin.</em>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
