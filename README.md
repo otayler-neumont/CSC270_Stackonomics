@@ -16,28 +16,29 @@ form. This is our Phase 1 submission for CSC270.
 | Database         | SQLite 3                               |
 | Web server       | Puma                                   |
 
-## How to run it - from scratch on Windows
+## How to set it up - from scratch on Windows
 
-These are the exact steps to take a clean Windows machine (no Ruby installed,
-nothing set up) all the way to a running server. If you'd rather skip past
-all of this, see the **One-click shortcut** section at the bottom - it does
-all of these steps automatically.
+These are the exact steps to take a clean Windows machine all the way to
+a running server. Do them once. After that, you can either repeat Step 8
+each time you want to start the server, or just double-click `start-dev.bat`
+(see the **One-click launch** section at the bottom).
 
 ### Step 1 - Install Ruby 4.0.3 (with DevKit)
 
 1. Go to <https://rubyinstaller.org/downloads/>.
-2. Under **WITH DEVKIT**, download the installer for **Ruby+Devkit 4.0.3-1
-   (x64)**.
-3. Run the downloaded installer. Use the default options. When it finishes,
-   leave the **"Run 'ridk install' to set up MSYS2"** checkbox **CHECKED**.
+2. Under **WITH DEVKIT**, download the installer for
+   **Ruby+Devkit 4.0.3-1 (x64)**.
+3. Run the downloaded installer. Use the default options. When the
+   installer finishes, leave the
+   **"Run 'ridk install' to set up MSYS2"** checkbox **CHECKED**.
 4. A black console window will pop up asking which components to install.
    Type `1 3` and press Enter. This installs the build toolchain Rails
-   needs to compile the SQLite library. It takes a few minutes.
-5. When it says "Press any key to continue", press a key. The console will
-   close.
+   needs to compile native gems. It takes a few minutes.
+5. When it says "Press any key to continue", press a key. The console
+   will close.
 
-To confirm Ruby is installed, **close all command windows**, open a fresh
-**PowerShell** window (Start menu -> type "powershell" -> Enter), and run:
+To confirm Ruby is installed, **close every command window**, open a fresh
+**PowerShell** (Start menu -> type "powershell" -> Enter), and run:
 
 ```powershell
 ruby -v
@@ -45,15 +46,39 @@ ruby -v
 
 You should see a line beginning with `ruby 4.0.3`.
 
-### Step 2 - Open this project folder in a terminal
+### Step 2 - Initialize the MSYS2 keyring (required, one time)
+
+Some of this project's gems contain native C code that gets compiled
+during install. On Windows that compile goes through MSYS2's package
+manager (`pacman`), which refuses to do anything until its keyring (the
+local trust store) has been initialized. **This step is required even
+if you used the RubyInstaller defaults**, because RubyInstaller does not
+populate the keyring for you.
+
+In your PowerShell window, run these two lines:
+
+```powershell
+ridk exec bash -lc "pacman-key --init"
+ridk exec bash -lc "pacman-key --populate msys2"
+```
+
+The first line creates the keyring. The second line imports the MSYS2
+project's signing keys into it. Each line takes about 15-30 seconds and
+prints a small wall of text. Both should finish without errors.
+
+(The `bash -lc "..."` wrapping is required because `ridk exec` by itself
+does not put the MSYS2 binaries on the PATH for the subshell.)
+
+### Step 3 - Open this project folder in PowerShell
 
 In File Explorer, navigate **into** the unzipped project folder
 (the one that contains `Gemfile`, `bin\`, `config\`, etc.).
 
-In the address bar at the top, type `powershell` and press Enter. A
-PowerShell window will open with this folder as its working directory.
+In the address bar at the top of File Explorer, type `powershell` and
+press Enter. A PowerShell window will open with this folder as its
+working directory.
 
-### Step 3 - Install Bundler (Ruby's dependency manager)
+### Step 4 - Install Bundler (Ruby's dependency manager)
 
 ```powershell
 gem install bundler
@@ -62,29 +87,33 @@ gem install bundler
 You can ignore the RDoc / "already initialized constant" warnings - those
 are harmless on Ruby 4.0 and don't affect anything.
 
-### Step 4 - Install the project's dependencies
+### Step 5 - Install the project's gems
 
 ```powershell
 bundle install
 ```
 
 This downloads and compiles all the gems the project uses (Rails,
-tailwindcss-rails, sqlite3, puma, etc.). The first run takes 2-5 minutes.
-When it finishes you should see something like *"Bundle complete! N Gemfile
-dependencies, M gems now installed."*
+tailwindcss-rails, sqlite3, puma, web-console, etc.). The first run takes
+2-5 minutes. When it finishes you should see something like
+*"Bundle complete! N Gemfile dependencies, M gems now installed."*
 
-### Step 5 - Create and migrate the database
+If `bundle install` fails on a native gem with a "public keyring not
+found" or "unknown trust" error, you skipped Step 2. Run Step 2, then
+re-run `bundle install`.
+
+### Step 6 - Create the database
 
 ```powershell
 ruby bin\rails db:prepare
 ```
 
-This creates `storage\development.sqlite3` and applies any migrations.
-On Phase 1 there are no migrations yet, so this just creates an empty DB.
-You should see *"Created database 'storage/development.sqlite3'"* (or
-nothing at all if it already exists - both are fine).
+This creates `storage\development.sqlite3`. Phase 1 has no migrations,
+so this just creates an empty SQLite file. You should see
+*"Created database 'storage/development.sqlite3'"* (or no output at all
+if it already exists - both are fine).
 
-### Step 6 - Build the Tailwind CSS
+### Step 7 - Build the Tailwind CSS
 
 ```powershell
 ruby bin\rails tailwindcss:build
@@ -92,7 +121,7 @@ ruby bin\rails tailwindcss:build
 
 This compiles the site's stylesheet. You should see *"Done in NNNms"*.
 
-### Step 7 - Start the web server
+### Step 8 - Start the web server
 
 ```powershell
 ruby bin\dev
@@ -106,53 +135,32 @@ When you see a line like:
 [web] * Listening on http://127.0.0.1:3000
 ```
 
-the app is ready.
+the app is ready. Open <http://localhost:3000> in your browser. Use the
+top navigation (Home / Gems / Metals / Mines) to visit the four pages,
+and try the demo tip form at the bottom of the home page.
 
-### Step 8 - Open it in a browser
+To stop the server, press **Ctrl+C** in the PowerShell window where you
+ran `ruby bin\dev`. Both the web server and the CSS watcher shut down
+cleanly.
 
-Go to <http://localhost:3000>.
+## One-click launch (after the steps above are done)
 
-You should land on the **Bedrock** home page. Use the top navigation
-(Home / Gems / Metals / Mines) to visit the four pages, and try the demo
-tip form at the bottom of the home page.
+Once Steps 1-7 above have been completed on a machine, you don't need
+to retype Step 8 every time. Just **double-click `start-dev.bat`** in
+the repo root. It runs `ruby bin\dev` for you and prints the same
+colored `[web]` / `[css]` output. Press **Ctrl+C** in the window to stop.
 
-### Stopping the server
+`start-dev.bat` does **not** install Ruby, gems, or the toolchain for
+you - those steps must be done by hand using the instructions above.
+The batch file is just a convenience wrapper around `ruby bin\dev`.
 
-In the PowerShell window where you ran `ruby bin\dev`, press **Ctrl+C**.
-Both the web server and the CSS watcher shut down cleanly. To start it
-again later, just repeat Step 7 (you don't need to redo Steps 1-6 once
-they're done).
+If `start-dev.bat` complains that something isn't installed yet, finish
+the corresponding step from the setup section above and try again.
 
-## One-click shortcut
-
-If you don't want to run those seven commands by hand, this project
-includes a Windows batch file that automates every one of them:
-
-> **Double-click `start-dev.bat` in the repo root.**
-
-It runs each of Steps 1-7 above in sequence, skipping any step that's
-already been done (so re-running it is safe and fast). The first run on a
-truly clean machine takes about 10-15 minutes because it has to download
-Ruby + DevKit (~150 MB), the build toolchain (~100 MB), and all the gems.
-Every run after that launches in seconds.
-
-When you see `Listening on http://127.0.0.1:3000` in the window, open
-<http://localhost:3000> in your browser. Press **Ctrl+C** in the batch
-window to stop everything.
-
-A few things worth knowing about the shortcut:
-
-- **Windows SmartScreen** may pop up the first time you double-click the
-  file (*"Windows protected your PC"*). Click **More info -> Run anyway**.
-  The batch file is plain text - you can open it in Notepad to see exactly
-  what it does (it hands off to `scripts\setup-and-run.ps1`, also plain
-  text and readable).
-- **No admin / UAC prompt is needed.** Ruby is installed per-user under
-  `%LOCALAPPDATA%\Programs\Ruby40-x64`.
-- **If the automatic Ruby install fails** (corporate antivirus blocks the
-  download, etc.), install Ruby manually using Step 1 above, then
-  double-click `start-dev.bat` again - everything else will run
-  automatically.
+> **Windows SmartScreen** may pop up the first time you double-click
+> the file (*"Windows protected your PC"*). Click
+> **More info -> Run anyway**. The batch file is plain text - you can
+> open it in Notepad to see exactly what it runs.
 
 ## What's in the app
 
@@ -180,22 +188,39 @@ Stackonomics/
 |-- bin/                 # Ruby launcher scripts (rails, dev, setup, ...)
 |-- config/              # Rails configuration (routes.rb, database.yml, ...)
 |-- db/                  # database schema (empty in Phase 1, no migrations yet)
-|-- scripts/             # setup-and-run.ps1 - what the .bat hands off to
 |-- storage/             # SQLite database file lives here once db:prepare runs
-|-- start-dev.bat        # the one-click launcher described above
+|-- start-dev.bat        # one-click launcher (only runs the server, see above)
 |-- Gemfile              # Ruby gem dependencies
 `-- README.md            # this file
 ```
 
 ## Troubleshooting
 
-- **`ruby` is not recognized.** You either skipped Step 1 or didn't open a
-  fresh PowerShell window after installing Ruby. Close every command
+- **`ruby` is not recognized.** You either skipped Step 1 or didn't open
+  a fresh PowerShell window after installing Ruby. Close every command
   window, open a new PowerShell, and try again.
-- **`bundle install` fails on `sqlite3`.** The MSYS2 build toolchain isn't
-  installed. Run `ridk install 1 3` in PowerShell, then re-run
-  `bundle install`.
-- **The page loads but looks unstyled (plain HTML).** Step 6 didn't run.
+- **`bundle install` fails with "public keyring not found, have you run
+  pacman init"** (or any "unknown trust" / signature error). You skipped
+  Step 2. Run these two lines, then re-run `bundle install`:
+  ```powershell
+  ridk exec bash -lc "pacman-key --init"
+  ridk exec bash -lc "pacman-key --populate msys2"
+  ```
+- **`bundle install` fails on `sqlite3` with a compile error like
+  "cannot find -lsqlite3" or "make: gcc not found".** The MSYS2 build
+  toolchain isn't installed. Run `ridk install 3` in PowerShell, then
+  re-run `bundle install`.
+- **`bundle install` hangs for several minutes on a single gem.** It's
+  almost always compiling a native extension (sqlite3, bindex,
+  websocket-driver). 3-5 minutes per gem on first run is normal. If it
+  has been stuck >10 minutes on the same gem, press Ctrl+C, run Step 2
+  again, then re-run `bundle install`.
+- **The page loads but looks unstyled (plain HTML).** You skipped Step 7.
   Run `ruby bin\rails tailwindcss:build` then refresh the browser.
-- **Port 3000 is in use.** Run `ruby bin\dev` with a different port:
-  `$env:PORT=4000; ruby bin\dev`, then visit `http://localhost:4000`.
+- **Port 3000 is already in use.** Start the server on a different port
+  by setting `PORT` first:
+  ```powershell
+  $env:PORT = "4000"
+  ruby bin\dev
+  ```
+  Then visit <http://localhost:4000> instead.

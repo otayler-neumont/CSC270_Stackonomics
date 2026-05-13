@@ -198,7 +198,54 @@ if ($installedRuby) {
 }
 
 # --------------------------------------------------------------------------
-# Step 3: ensure MSYS2 build toolchain (needed by sqlite3 native gem)
+# Step 3a: ensure the MSYS2 pacman keyring is initialized
+#
+# Without this, every native-extension compile that goes through MSYS2 fails
+# with "public keyring not found, have you run pacman init". 'ridk version'
+# happily reports a working toolchain even when the keyring is broken, so we
+# always verify + repair it ourselves before touching anything that compiles
+# C code (sqlite3, bindex/web-console, nokogiri-style gems, etc.).
+# --------------------------------------------------------------------------
+
+function Invoke-Msys2 {
+    # ridk exec doesn't put /usr/bin on PATH for the subshell, so bare
+    # invocations of pacman-key, pacman, etc. fail with "not recognized".
+    # Wrapping the command in `bash -lc "..."` loads MSYS2's login env.
+    param([string]$Cmd)
+    & ridk exec bash -lc $Cmd 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    return $LASTEXITCODE
+}
+
+function Test-Keyring {
+    if (-not (Get-Command ridk -ErrorAction SilentlyContinue)) { return $true }
+    try {
+        $out = & ridk exec bash -lc "pacman-key --list-keys 2>/dev/null" 2>&1 | Out-String
+        # An initialized + populated keyring lists at least one "pub" entry.
+        return ($out -match "(?m)^pub\s")
+    } catch {
+        return $false
+    }
+}
+
+if (-not (Get-Command ridk -ErrorAction SilentlyContinue)) {
+    Write-WarnStep "keyring" "ridk not available yet - skipping keyring init."
+} elseif (Test-Keyring) {
+    Write-Ok "keyring" "MSYS2 pacman keyring already initialized."
+} else {
+    Write-Info "keyring" "Initializing MSYS2 pacman keyring (one-time, ~30s)..."
+    [void](Invoke-Msys2 "pacman-key --init")
+    $code = Invoke-Msys2 "pacman-key --populate msys2"
+    if ($code -ne 0) {
+        Write-WarnStep "keyring" "pacman-key --populate exited with $code - continuing, but native gem compiles may fail."
+    } elseif (Test-Keyring) {
+        Write-Ok "keyring" "Keyring initialized."
+    } else {
+        Write-WarnStep "keyring" "Keyring still empty after init - native gem compiles may fail."
+    }
+}
+
+# --------------------------------------------------------------------------
+# Step 3b: ensure MSYS2 build toolchain (needed by sqlite3, bindex, etc.)
 # --------------------------------------------------------------------------
 
 function Test-Toolchain {
@@ -211,16 +258,31 @@ function Test-Toolchain {
     }
 }
 
+function Invoke-RidkInstall {
+    # 1 = MSYS2 base, 3 = MSYS2 + MINGW dev toolchain. The non-interactive
+    # form takes a space-separated list as positional args.
+    & ridk install 1 3 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    return $LASTEXITCODE
+}
+
 if (Test-Toolchain) {
     Write-Ok "toolchain" "MSYS2 build toolchain already configured - skipping."
 } else {
     Write-Info "toolchain" "Installing MSYS2 build toolchain via 'ridk install 1 3' (a few minutes)..."
     try {
-        # 1 = MSYS2 base, 3 = MSYS2 + MINGW dev toolchain. The non-interactive
-        # form takes a comma-list on stdin via the package selection prompt.
-        & ridk install 1 3 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-        if ($LASTEXITCODE -ne 0) {
-            Write-WarnStep "toolchain" "ridk exited with code $LASTEXITCODE - continuing anyway, sqlite3 install may fail."
+        $code = Invoke-RidkInstall
+
+        # If the install hit a keyring error mid-flight (e.g. partial earlier
+        # install left it inconsistent), repair the keyring and retry once.
+        if ($code -ne 0) {
+            Write-WarnStep "toolchain" "ridk exited with code $code - repairing keyring and retrying once..."
+            [void](Invoke-Msys2 "pacman-key --init")
+            [void](Invoke-Msys2 "pacman-key --populate msys2")
+            $code = Invoke-RidkInstall
+        }
+
+        if ($code -ne 0) {
+            Write-WarnStep "toolchain" "ridk still exited with code $code - continuing anyway, native gem builds may fail."
         } else {
             Write-Ok "toolchain" "Toolchain installed."
         }
@@ -255,19 +317,50 @@ if ($bundlerInstalled) {
 # Step 5: ensure gems are installed
 # --------------------------------------------------------------------------
 
+function Invoke-BundleInstall {
+    # Captures stdout+stderr so we can scan for keyring errors. Also tees the
+    # output to the user's window in real time.
+    $captured = New-Object System.Text.StringBuilder
+    & bundle install 2>&1 | ForEach-Object {
+        Write-Host "  $_" -ForegroundColor DarkGray
+        [void]$captured.AppendLine([string]$_)
+    }
+    return [pscustomobject]@{
+        ExitCode = $LASTEXITCODE
+        Output   = $captured.ToString()
+    }
+}
+
 Write-Info "gems" "Checking gem dependencies (bundle check)..."
 & bundle check 2>$null | Out-Null
 if ($LASTEXITCODE -eq 0) {
     Write-Ok "gems" "All gems already satisfied."
 } else {
     Write-Info "gems" "Running bundle install (this can take a few minutes the first time)..."
-    & bundle install 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-    if ($LASTEXITCODE -ne 0) {
-        Write-ErrStep "gems" "bundle install failed (exit $LASTEXITCODE)."
+    $result = Invoke-BundleInstall
+
+    # Self-heal on the classic MSYS2 keyring failure. If the install died
+    # because pacman couldn't verify a package, repair the keyring and retry
+    # bundle install exactly once.
+    $keyringHit = $result.Output -match "public keyring not found" -or `
+                  $result.Output -match "pacman-key --init" -or `
+                  $result.Output -match "signature from .* is unknown trust"
+    if ($result.ExitCode -ne 0 -and $keyringHit) {
+        Write-WarnStep "gems" "Hit an MSYS2 keyring error - repairing pacman keyring and retrying bundle install."
+        [void](Invoke-Msys2 "pacman-key --init")
+        [void](Invoke-Msys2 "pacman-key --populate msys2")
+        $result = Invoke-BundleInstall
+    }
+
+    if ($result.ExitCode -ne 0) {
+        Write-ErrStep "gems" "bundle install failed (exit $($result.ExitCode))."
         Write-Host ""
-        Write-Host "  This usually means a native extension (e.g. sqlite3) couldn't compile." -ForegroundColor Yellow
-        Write-Host "  Open a fresh terminal and try: ridk install 1 3" -ForegroundColor Yellow
-        Write-Host "  Then re-run start-dev.bat." -ForegroundColor Yellow
+        Write-Host "  This usually means a native extension (sqlite3, bindex, etc.) couldn't compile." -ForegroundColor Yellow
+        Write-Host "  Try the following in a fresh PowerShell window, then re-run start-dev.bat:" -ForegroundColor Yellow
+        Write-Host "    ridk exec bash -lc `"pacman-key --init`"" -ForegroundColor Yellow
+        Write-Host "    ridk exec bash -lc `"pacman-key --populate msys2`"" -ForegroundColor Yellow
+        Write-Host "    ridk install 3" -ForegroundColor Yellow
+        Write-Host "    bundle install" -ForegroundColor Yellow
         Write-Host ""
         exit 5
     }
