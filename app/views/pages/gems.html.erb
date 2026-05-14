@@ -33,6 +33,94 @@
   </div>
 </section>
 
+<%# Phase 2: live spotlight pulled from the MineralFYI public API on page load. %>
+<section class="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 text-stone-100 border-b border-stone-200">
+  <div class="max-w-6xl mx-auto px-6 py-12">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300 bg-emerald-500/10 ring-1 ring-emerald-400/40 px-3 py-1 rounded-full">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+          </span>
+          Live · fetched on page load
+        </span>
+        <span class="text-[10px] uppercase tracking-[0.18em] text-stone-400">
+          Source:
+          <a href="<%= @api_source[:url] %>" target="_blank" rel="noopener" class="underline decoration-dotted hover:text-emerald-300"><%= @api_source[:name] %></a>
+        </span>
+      </div>
+      <p class="text-xs text-stone-400">Reload for a different mineral.</p>
+    </div>
+
+    <% if @spotlight_mineral.present? %>
+      <article class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <div class="md:col-span-2">
+          <%# Show the jewelry-trade name as the headline, with the
+              underlying mineral species as a subtitle when they differ.
+              e.g. "Ruby" (headline) / "A variety of Corundum" (subtitle) %>
+          <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            <%= @spotlight_card[:name] %>
+            <% if @spotlight_mineral[:formula].present? %>
+              <span class="ml-2 align-middle text-base font-mono text-emerald-300/90 bg-emerald-500/10 ring-1 ring-emerald-400/30 rounded px-2 py-0.5">
+                <%= @spotlight_mineral[:formula] %>
+              </span>
+            <% end %>
+          </h2>
+          <% if @spotlight_mineral[:name].present? && !@spotlight_mineral[:name].casecmp?(@spotlight_card[:name]) %>
+            <p class="mt-1 text-sm text-emerald-300/80">
+              A variety of <strong class="text-emerald-200"><%= @spotlight_mineral[:name] %></strong>
+            </p>
+          <% end %>
+          <% if @spotlight_mineral[:description].present? %>
+            <p class="mt-4 text-stone-300 leading-relaxed">
+              <%= @spotlight_mineral[:description] %>
+            </p>
+          <% end %>
+          <% if @spotlight_mineral[:source_url].present? %>
+            <p class="mt-4 text-xs">
+              <a href="<%= @spotlight_mineral[:source_url] %>" target="_blank" rel="noopener" class="text-emerald-300 underline decoration-dotted hover:text-emerald-200">
+                Full record on MineralFYI &rarr;
+              </a>
+            </p>
+          <% end %>
+        </div>
+
+        <dl class="grid grid-cols-2 gap-3 text-sm">
+          <% [
+            ["Hardness",         @spotlight_mineral[:hardness]],
+            ["Specific gravity", @spotlight_mineral[:specific_gravity]],
+            ["Crystal system",   @spotlight_mineral[:crystal_system]],
+            ["Mineral class",    @spotlight_mineral[:mineral_class]],
+            ["Color",            @spotlight_mineral[:color]],
+            ["Luster",           @spotlight_mineral[:luster]],
+            ["Streak",           @spotlight_mineral[:streak]],
+            ["Cleavage",         @spotlight_mineral[:cleavage]],
+            ["Fracture",         @spotlight_mineral[:fracture]],
+            ["Transparency",     @spotlight_mineral[:transparency]]
+          ].select { |_, v| v.present? }.each do |label, value| %>
+            <div class="bg-white/5 ring-1 ring-white/10 rounded-md px-3 py-2 col-span-2 sm:col-span-1">
+              <dt class="text-[10px] uppercase tracking-wider text-stone-400"><%= label %></dt>
+              <dd class="mt-0.5 text-stone-100 font-medium break-words"><%= value %></dd>
+            </div>
+          <% end %>
+        </dl>
+      </article>
+    <% else %>
+      <%# Service returned nil — show an honest "API unreachable" notice
+          so the page still renders cleanly. %>
+      <div class="mt-6 rounded-lg bg-amber-500/10 ring-1 ring-amber-400/40 p-5">
+        <h2 class="text-lg font-bold text-amber-200">Live spotlight unavailable</h2>
+        <p class="mt-2 text-sm text-amber-100/90 leading-relaxed">
+          We tried to fetch a live entry from <a href="<%= @api_source[:url] %>" class="underline">MineralFYI</a>
+          for <strong><%= @spotlight_card[:name] %></strong>, but the request did not succeed
+          (the API may be down or you may be offline). The curated cards below still work.
+        </p>
+      </div>
+    <% end %>
+  </div>
+</section>
+
 <%# Mohs scale visual %>
 <section class="max-w-6xl mx-auto px-6 py-12">
   <div class="flex items-end justify-between flex-wrap gap-3">

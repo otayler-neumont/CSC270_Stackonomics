@@ -22,6 +22,10 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 
+# REXML is no longer auto-loaded as part of Ruby's stdlib in 4.x; we use
+# it in UsgsMinesService to parse the USGS MRDS search-by-name XML.
+gem "rexml"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"

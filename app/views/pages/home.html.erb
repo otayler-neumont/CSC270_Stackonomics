@@ -5,7 +5,7 @@
   <div class="max-w-6xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
     <div>
       <span class="inline-block text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800 bg-amber-100 ring-1 ring-amber-300/60 px-3 py-1 rounded-full">
-        CSC270 · Phase 1
+        CSC270 · Phase 2
       </span>
       <h1 class="mt-5 text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
         A field guide to what's <span class="text-amber-700">under our feet</span>.
@@ -15,10 +15,12 @@
         <em>gems</em>, <em>metals</em>, and the <em>mines</em> they come from.
       </p>
       <p class="mt-4 text-base text-slate-600 leading-relaxed">
-        Built on Ruby on Rails as our Phase 1 sample app for CSC270. The page
-        data is hardcoded in the controller right now, and the tip form at the
-        bottom doesn't actually save anything. Phase 2 wires both up to a
-        real database.
+        Built on Ruby on Rails as our sample app for CSC270. As of Phase 2,
+        the <%= link_to "Gems", gems_path, class: "underline decoration-dotted hover:text-amber-700" %>
+        and <%= link_to "Mines", mines_path, class: "underline decoration-dotted hover:text-amber-700" %>
+        pages fetch live data from public APIs on page load - MineralFYI for
+        mineral encyclopedia entries and the USGS Mineral Resources Data
+        System for real US mine records.
       </p>
 
       <div class="mt-7 flex flex-wrap gap-3">
@@ -208,8 +210,8 @@
       <h2 class="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">Spot something we should add?</h2>
       <p class="mt-4 text-slate-700 leading-relaxed">
         Know a gem we should add, or a mine with a good story? Drop a note
-        below. The form doesn't actually save anything in Phase 1; we'll wire
-        it up to a model next phase.
+        below. The form doesn't actually save anything yet; we'll wire it up
+        to a model in a later phase.
       </p>
     </div>
 
@@ -247,7 +249,7 @@
         <div class="flex items-center gap-3">
           <%= f.submit "Send tip",
                 class: "bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-md font-semibold shadow transition cursor-pointer" %>
-          <span class="text-xs text-stone-500">Phase 1: nothing is saved yet.</span>
+          <span class="text-xs text-stone-500">Demo only: nothing is saved yet.</span>
         </div>
       <% end %>
     </div>

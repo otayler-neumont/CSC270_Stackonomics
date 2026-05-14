@@ -1,8 +1,13 @@
-# Stackonomics - CSC270 Phase 1
+# Stackonomics - CSC270
 
 A small Ruby on Rails web app called **Bedrock**: a four-page reference site
 about gems, metals, and the mines they come from, plus a demo tip-submission
-form. This is our Phase 1 submission for CSC270.
+form. This is our team's project for CSC270, built up phase by phase.
+
+| Phase   | What it adds                                                             | Status |
+| ------- | ------------------------------------------------------------------------ | ------ |
+| Phase 1 | Stack choice + static sample app (Home, Gems, Metals, Mines, tip form)   | Done (tagged `phase-1`) |
+| Phase 2 | Dynamic content from two public APIs (USGS MRDS + MineralFYI)            | **Current** |
 
 ## What's in the stack
 
@@ -167,15 +172,40 @@ the corresponding step from the setup section above and try again.
 | Page         | URL              | What it shows                                                                              |
 | ------------ | ---------------- | ------------------------------------------------------------------------------------------ |
 | Home         | `/`              | Hero, three topic cards, a randomized "Featured today" trio, and the demo tip form         |
-| Gems         | `/gems`          | 12 gems with Mohs hardness, color, origins, and a Mohs hardness scale graphic              |
+| Gems         | `/gems`          | A **live spotlight gem** fetched from MineralFYI on page load, the Mohs hardness scale, and 12 curated gem cards |
 | Metals       | `/metals`        | 15 metals as periodic-table tiles, grouped Precious / Base / Light & Strategic             |
-| Mines        | `/mines`         | 10 landmark mines grouped by region (Africa, Americas, Asia, Asia-Pacific)                 |
-| Tip form     | `POST /tips`     | Phase 1 demo form. Submitting flashes a notice; nothing is actually saved. Will be wired   |
-|              |                  | up to a real database in Phase 2.                                                          |
+| Mines        | `/mines`         | A **live table of real US mine records** pulled from the USGS MRDS database on page load, plus 10 curated landmark mines grouped by region |
+| Tip form     | `POST /tips`     | Demo form. Submitting flashes a notice; nothing is actually saved. Will be wired up to a real database in a later phase. |
 
-All page data currently lives as Ruby constants in
-`app\controllers\pages_controller.rb`. All imagery is hand-rolled inline
-SVG inside the ERB templates - there are no external image files.
+Most page data still lives as Ruby constants in
+`app/controllers/pages_controller.rb`. The new live sections on `/gems` and
+`/mines` come from public APIs at request time - see **Phase 2: live API
+integration** below. All imagery is hand-rolled inline SVG inside the ERB
+templates - no external image files.
+
+## Phase 2: live API integration
+
+Two pages now fetch dynamic content from public, credential-free APIs at
+request time:
+
+| Page    | API                                                                | What we render                                                                        |
+| ------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `/gems` | **MineralFYI** ([docs](https://mineralfyi.com/developers/))        | Random spotlight gem's full encyclopedia entry: formula, Mohs hardness, color, luster, cleavage, description |
+| `/mines`| **USGS MRDS** ([docs](https://mrdata.usgs.gov/catalog/api.php))    | Real US mine records matching a rotating commodity (gold, copper, silver, ...) with state, status, coordinates, USGS ID |
+
+The integration lives in three service objects:
+
+```
+app/services/
+  api_client.rb          # tiny Net::HTTP wrapper with timeouts and JSON parsing
+  mineral_fyi_service.rb # MineralFYI client (returns Hash / nil on failure)
+  usgs_mines_service.rb  # USGS MRDS client (XML search + GeoJSON detail, returns Array / nil)
+```
+
+Both services return `nil` (or `[]`) on any network or parse failure, and
+both views check for that and render an honest "API unavailable" banner
+instead of crashing - so the page never throws a runtime error even if the
+upstream API is down.
 
 ## Project layout
 

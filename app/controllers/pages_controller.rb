@@ -65,14 +65,34 @@ class PagesController < ApplicationController
       { rank: 9,  mineral: "Corundum", note: "Ruby & sapphire" },
       { rank: 10, mineral: "Diamond",  note: "Scratches everything else" }
     ]
+
+    # Phase 2: pick a rotating spotlight gem and pull its live encyclopedia
+    # entry from MineralFYI (https://mineralfyi.com). The service returns
+    # nil on any network/parse failure; the view degrades gracefully.
+    @spotlight_card    = GEMS.sample
+    @spotlight_mineral = MineralFyiService.find_for_gem(@spotlight_card[:name])
+    @api_source        = { name: "MineralFYI", url: "https://mineralfyi.com/developers/" }
   end
 
   def metals
     @metals_by_group = METALS.group_by { |m| m[:group] }
   end
 
+  # Commodity names that USGS MRDS actually indexes well. We rotate through
+  # them so each page load shows a different slice of real mine data.
+  USGS_COMMODITIES = %w[gold copper silver iron diamond zinc lead].freeze
+
   def mines
     @mines_by_region = MINES.group_by { |m| m[:region] }
+
+    # Phase 2: query the USGS Mineral Resources Data System for live mine
+    # records matching one of the commodities above. Returns [] on failure.
+    @usgs_commodity = USGS_COMMODITIES.sample
+    @usgs_records   = UsgsMinesService.search_by_name(@usgs_commodity, limit: 10)
+    @api_source     = {
+      name: "USGS Mineral Resources Data System",
+      url:  "https://mrdata.usgs.gov/mrds/"
+    }
   end
 
   def submit_tip
