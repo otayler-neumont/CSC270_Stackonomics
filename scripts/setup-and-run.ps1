@@ -129,9 +129,15 @@ function Install-RubyViaWinget {
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         return $false
     }
-    Write-Info "ruby" "Installing Ruby $ExpectedRuby via winget (this can take 5-10 minutes)..."
+    Write-Info "ruby" "Installing Ruby $ExpectedRuby (x64) via winget (this can take 5-10 minutes)..."
     try {
+        # --architecture x64 is critical on Windows 11 ARM. Without it, winget
+        # auto-selects the ARM-native RubyInstaller build (`Ruby40-arm`), which
+        # has no precompiled gems available on rubygems.org for x64-locked
+        # projects like ours. Windows 11 ARM emulates x64 transparently, so
+        # forcing x64 here gives us a working Ruby on every Windows machine.
         & winget install --id $WingetPackageId -e --silent `
+            --architecture x64 `
             --accept-package-agreements --accept-source-agreements `
             --scope user 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
         if ($LASTEXITCODE -ne 0) {
@@ -196,6 +202,57 @@ if ($installedRuby) {
     }
     $installedRuby = Get-RubyVersion
     Write-Ok "ruby" "Ruby $installedRuby is now on PATH."
+}
+
+# --------------------------------------------------------------------------
+# Step 2b: verify Ruby's reported platform matches what our Gemfile.lock
+# pins. Our locked precompiled gems (nokogiri, sqlite3, tailwindcss-ruby)
+# are all `x64-mingw-ucrt` binaries. If the user is running ARM-native Ruby
+# (typical on Windows 11 ARM laptops when winget auto-selects the ARM
+# build), those gems would fall back to source compilation, which fails
+# because the MSYS2 toolchain we install below targets x86_64. Easier to
+# fail fast with clear instructions than to waste 10 minutes on a setup
+# that can't possibly work.
+# --------------------------------------------------------------------------
+
+$ExpectedPlatform = "x64-mingw-ucrt"
+
+function Get-RubyPlatform {
+    try {
+        $out = & ruby -e "print Gem::Platform.local.to_s" 2>$null
+        if ($LASTEXITCODE -eq 0) { return ($out | Out-String).Trim() }
+    } catch { }
+    return $null
+}
+
+$rubyPlatform = Get-RubyPlatform
+if (-not $rubyPlatform) {
+    Write-WarnStep "platform" "Could not determine Ruby's reported platform. Continuing, but bundle install may fail."
+} elseif ($rubyPlatform -eq $ExpectedPlatform) {
+    Write-Ok "platform" "Ruby platform is $rubyPlatform - matches Gemfile.lock."
+} else {
+    $rubyExePath = (Get-Command ruby -ErrorAction SilentlyContinue).Path
+    Write-ErrStep "platform" "Ruby platform mismatch: this Ruby reports '$rubyPlatform', but the project's Gemfile.lock pins precompiled gems for '$ExpectedPlatform'."
+    Write-Host ""
+    Write-Host "  This usually means winget auto-selected an ARM-native Ruby on a" -ForegroundColor Yellow
+    Write-Host "  Windows 11 ARM machine (Surface Pro X, Surface Pro 9/11 ARM, etc.)." -ForegroundColor Yellow
+    Write-Host "  Native ARM Ruby has no precompiled binaries on rubygems.org for our" -ForegroundColor Yellow
+    Write-Host "  locked gems (nokogiri, sqlite3, tailwindcss-ruby), so bundle install" -ForegroundColor Yellow
+    Write-Host "  falls back to source compilation, which can't succeed here." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Fix: install the x64 build of Ruby instead. Windows 11 ARM emulates" -ForegroundColor Yellow
+    Write-Host "  x64 transparently, so it runs fine - just a bit slower than native." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Detected ARM Ruby at: $rubyExePath" -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  Run these in a fresh PowerShell, then re-run start-dev.bat:" -ForegroundColor Yellow
+    Write-Host "    winget uninstall $WingetPackageId" -ForegroundColor White
+    Write-Host "    winget install --id $WingetPackageId -e --architecture x64 --scope user --accept-package-agreements --accept-source-agreements" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  After winget finishes, close every PowerShell/cmd window, open a" -ForegroundColor Yellow
+    Write-Host "  fresh one, then double-click start-dev.bat again." -ForegroundColor Yellow
+    Write-Host ""
+    exit 7
 }
 
 # --------------------------------------------------------------------------
@@ -297,7 +354,7 @@ if (Test-Toolchain) {
 #
 # Rails pulls psych through rdoc; without libyaml, `gem install psych` fails
 # with "yaml.h not found". A stale pacman db.lck (crash or interrupted update)
-# causes "could not lock database" — we remove it only immediately before our
+# causes "could not lock database" - we remove it only immediately before our
 # own single pacman line (close any other MSYS2 terminal running pacman first).
 # --------------------------------------------------------------------------
 
@@ -321,6 +378,44 @@ function Ensure-MsysLibyaml {
 }
 
 Ensure-MsysLibyaml
+
+# --------------------------------------------------------------------------
+# Step 3d: MSYS2 dev libs for nokogiri (and other native XML gems)
+#
+# Rails pulls nokogiri through actionpack/actiontext. On Windows the
+# precompiled `x64-mingw-ucrt` binary should be used and no compile is
+# needed; but if anything pushes bundler onto the source-only `nokogiri`
+# gem (platform mismatch, lock file regeneration, deployment mode...), the
+# source build needs libxml2/libxslt/zlib/libiconv headers from MSYS2.
+# Installing these preventively is cheap (~5 MB) and turns a hard failure
+# into a successful fallback.
+# --------------------------------------------------------------------------
+
+function Ensure-MsysNokogiriDeps {
+    if (-not (Get-Command ridk -ErrorAction SilentlyContinue)) {
+        Write-WarnStep "nokogiri" "ridk not on PATH - skipping nokogiri dev libs (source build will fail if precompiled binary is bypassed)."
+        return
+    }
+
+    Write-Info "nokogiri" "Installing MSYS2 dev libs for nokogiri source builds (libxml2, libxslt, zlib, libiconv)..."
+    [void](Invoke-Msys2 "rm -f /var/lib/pacman/db.lck")
+
+    $pkgs = @(
+        "mingw-w64-ucrt-x86_64-libxml2",
+        "mingw-w64-ucrt-x86_64-libxslt",
+        "mingw-w64-ucrt-x86_64-zlib",
+        "mingw-w64-ucrt-x86_64-libiconv"
+    ) -join " "
+    $code = Invoke-Msys2 "pacman -S --needed --noconfirm $pkgs"
+    if ($code -eq 0) {
+        Write-Ok "nokogiri" "MSYS2 nokogiri build deps are installed."
+        return
+    }
+
+    Write-WarnStep "nokogiri" "pacman could not install nokogiri deps (exit $code). The precompiled x64-mingw-ucrt binary should still work; if not, manually run: ridk exec bash -lc `"rm -f /var/lib/pacman/db.lck && pacman -S --needed --noconfirm $pkgs`""
+}
+
+Ensure-MsysNokogiriDeps
 
 # --------------------------------------------------------------------------
 # Step 4: ensure Bundler
@@ -377,6 +472,17 @@ Write-Info "gems" "Checking gem dependencies (bundle check)..."
 if ($LASTEXITCODE -eq 0) {
     Write-Ok "gems" "All gems already satisfied."
 } else {
+    # Belt-and-suspenders: tell bundler to prefer platform-specific gems
+    # (the precompiled `x64-mingw-ucrt` binaries) and make sure that
+    # platform is in the lockfile. Without this, bundler can fall back to
+    # the source-only `nokogiri` gem and try to compile from source on
+    # first install - which fails unless libxml2/libxslt headers are
+    # present (we install them in Step 3d, but better to skip the compile
+    # entirely if we can).
+    Write-Info "bundler-cfg" "Configuring bundler to prefer precompiled Windows gems..."
+    & bundle config set --local force_ruby_platform false 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    & bundle lock --add-platform x64-mingw-ucrt 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+
     Write-Info "gems" "Running bundle install (this can take a few minutes the first time)..."
     $result = Invoke-BundleInstall
 
@@ -397,16 +503,20 @@ if ($LASTEXITCODE -eq 0) {
         Write-ErrStep "gems" "bundle install failed (exit $($result.ExitCode))."
         Write-Host ""
         Write-Host "  Common causes on Windows:" -ForegroundColor Yellow
-        Write-Host "    - psych: missing libyaml (yaml.h) — install MSYS2 package libyaml, then bundle again." -ForegroundColor Yellow
-        Write-Host "    - pacman: stale lock file — close all MSYS2 terminals, then remove db.lck (see below)." -ForegroundColor Yellow
+        Write-Host "    - nokogiri: bundler is compiling the source gem instead of using the precompiled" -ForegroundColor Yellow
+        Write-Host "      x64-mingw-ucrt binary. Source build needs libxml2/libxslt MSYS2 dev packages." -ForegroundColor Yellow
+        Write-Host "    - psych: missing libyaml (yaml.h). Install MSYS2 package libyaml, then bundle again." -ForegroundColor Yellow
+        Write-Host "    - pacman: stale lock file. Close all MSYS2 terminals, then remove db.lck (see below)." -ForegroundColor Yellow
         Write-Host "    - other native gems (sqlite3, bindex): MSYS2 toolchain incomplete." -ForegroundColor Yellow
         Write-Host ""
         Write-Host "  Try in a fresh PowerShell (repo folder), then re-run start-dev.bat:" -ForegroundColor Yellow
         Write-Host "    ridk exec bash -lc `"rm -f /var/lib/pacman/db.lck && pacman -Syu --noconfirm`"" -ForegroundColor Yellow
-        Write-Host "    ridk exec bash -lc `"pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-libyaml`"" -ForegroundColor Yellow
+        Write-Host "    ridk exec bash -lc `"pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-libyaml mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-libxslt mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-libiconv`"" -ForegroundColor Yellow
         Write-Host "    ridk exec bash -lc `"pacman-key --init`"" -ForegroundColor Yellow
         Write-Host "    ridk exec bash -lc `"pacman-key --populate msys2`"" -ForegroundColor Yellow
         Write-Host "    ridk install 3" -ForegroundColor Yellow
+        Write-Host "    bundle config set --local force_ruby_platform false" -ForegroundColor Yellow
+        Write-Host "    bundle lock --add-platform x64-mingw-ucrt" -ForegroundColor Yellow
         Write-Host "    bundle install" -ForegroundColor Yellow
         Write-Host ""
         exit 5
