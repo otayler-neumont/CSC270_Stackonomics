@@ -218,6 +218,33 @@ Stackonomics/
   bundle install
   ```
   Current `start-dev.bat` tries this automatically before `bundle install`.
+- **`bundle install` fails on `nokogiri` with "Failed to build gem native
+  extension" or "An error occurred while installing nokogiri (1.19.3)".**
+  Bundler fell back to the source-only nokogiri gem instead of using the
+  precompiled `x64-mingw-ucrt` binary. Fix it by telling bundler to prefer
+  platform-specific gems and installing the nokogiri C library deps:
+  ```powershell
+  bundle config set --local force_ruby_platform false
+  bundle lock --add-platform x64-mingw-ucrt
+  ridk exec bash -lc "rm -f /var/lib/pacman/db.lck && pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-libxslt mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-libiconv"
+  bundle install
+  ```
+  Current `start-dev.bat` does both of these automatically before `bundle install`.
+- **Launcher aborts with `Ruby platform mismatch: this Ruby reports
+  'aarch64-mingw-ucrt'`** (or any non-`x64-mingw-ucrt` platform). You're on
+  a Windows 11 ARM machine (Surface Pro X / Surface Pro 9 / 11 ARM / etc.)
+  and winget auto-installed the ARM-native Ruby. The project's precompiled
+  gems (nokogiri, sqlite3, tailwindcss-ruby) are all x64-only, so the ARM
+  Ruby falls back to source compile and fails. Switch to the x64 Ruby
+  (Windows 11 ARM emulates x64 transparently):
+  ```powershell
+  winget uninstall RubyInstallerTeam.RubyWithDevKit.4.0
+  winget install --id RubyInstallerTeam.RubyWithDevKit.4.0 -e --architecture x64 --scope user --accept-package-agreements --accept-source-agreements
+  ```
+  Close every PowerShell/cmd window, open a fresh one, then double-click
+  `start-dev.bat` again. The current `start-dev.bat` already passes
+  `--architecture x64` to winget, so a clean run on a brand-new machine
+  picks the right build automatically.
 - **`error: could not lock database` / `db.lck` during gem install.** Another
   MSYS2 window is using pacman, or a previous run left a stale lock. Close all
   MSYS2 terminals, then remove the lock and retry (same `rm` line as above).
