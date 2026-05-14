@@ -210,6 +210,17 @@ Stackonomics/
   "cannot find -lsqlite3" or "make: gcc not found".** The MSYS2 build
   toolchain isn't installed. Run `ridk install 3` in PowerShell, then
   re-run `bundle install`.
+- **`bundle install` fails on `psych` with "yaml.h not found".** Install
+  libyaml into MSYS2 (Ruby 4 + Rails needs it for YAML), then bundle again:
+  ```powershell
+  ridk exec bash -lc "rm -f /var/lib/pacman/db.lck"
+  ridk exec bash -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-libyaml"
+  bundle install
+  ```
+  Current `start-dev.bat` tries this automatically before `bundle install`.
+- **`error: could not lock database` / `db.lck` during gem install.** Another
+  MSYS2 window is using pacman, or a previous run left a stale lock. Close all
+  MSYS2 terminals, then remove the lock and retry (same `rm` line as above).
 - **`bundle install` hangs for several minutes on a single gem.** It's
   almost always compiling a native extension (sqlite3, bindex,
   websocket-driver). 3-5 minutes per gem on first run is normal. If it

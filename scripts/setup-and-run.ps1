@@ -8,6 +8,7 @@
 #   1. Network preflight (fail fast if offline)
 #   2. Install Ruby 4.0.3 + DevKit (winget preferred, direct download fallback)
 #   3. Run `ridk install 1 3` to set up the MSYS2 build toolchain
+#   3c. Install MSYS2 libyaml (headers for the psych gem / YAML)
 #   4. Install Bundler if missing, then `bundle install`
 #   5. `bin/rails db:prepare` if the SQLite DB is missing or pending migrations
 #   6. `bin/rails tailwindcss:build` if the compiled CSS is missing
@@ -292,6 +293,36 @@ if (Test-Toolchain) {
 }
 
 # --------------------------------------------------------------------------
+# Step 3c: MSYS2 libyaml (psych / rdoc need yaml.h on Windows)
+#
+# Rails pulls psych through rdoc; without libyaml, `gem install psych` fails
+# with "yaml.h not found". A stale pacman db.lck (crash or interrupted update)
+# causes "could not lock database" — we remove it only immediately before our
+# own single pacman line (close any other MSYS2 terminal running pacman first).
+# --------------------------------------------------------------------------
+
+function Ensure-MsysLibyaml {
+    if (-not (Get-Command ridk -ErrorAction SilentlyContinue)) {
+        Write-WarnStep "libyaml" "ridk not on PATH - skipping libyaml install (psych build may fail)."
+        return
+    }
+
+    Write-Info "libyaml" "Installing MSYS2 libyaml for native psych (one-time if missing)..."
+    [void](Invoke-Msys2 "rm -f /var/lib/pacman/db.lck")
+
+    $pkg = "mingw-w64-ucrt-x86_64-libyaml"
+    $code = Invoke-Msys2 "pacman -S --needed --noconfirm $pkg"
+    if ($code -eq 0) {
+        Write-Ok "libyaml" "MSYS2 package $pkg is installed."
+        return
+    }
+
+    Write-WarnStep "libyaml" "pacman could not install $pkg (exit $code). Close any MSYS2/pacman windows, then run: ridk exec bash -lc `"rm -f /var/lib/pacman/db.lck && pacman -S --needed --noconfirm $pkg`""
+}
+
+Ensure-MsysLibyaml
+
+# --------------------------------------------------------------------------
 # Step 4: ensure Bundler
 # --------------------------------------------------------------------------
 
@@ -320,10 +351,20 @@ if ($bundlerInstalled) {
 function Invoke-BundleInstall {
     # Captures stdout+stderr so we can scan for keyring errors. Also tees the
     # output to the user's window in real time.
+    # Fewer parallel jobs on Windows reduces MSYS2 / compiler contention while
+    # several native extensions (psych, sqlite3, etc.) compile.
+    $prevJobs = $env:BUNDLE_JOBS
+    if ($env:OS -match "Windows") {
+        $env:BUNDLE_JOBS = "1"
+    }
     $captured = New-Object System.Text.StringBuilder
-    & bundle install 2>&1 | ForEach-Object {
-        Write-Host "  $_" -ForegroundColor DarkGray
-        [void]$captured.AppendLine([string]$_)
+    try {
+        & bundle install 2>&1 | ForEach-Object {
+            Write-Host "  $_" -ForegroundColor DarkGray
+            [void]$captured.AppendLine([string]$_)
+        }
+    } finally {
+        if ($null -eq $prevJobs) { Remove-Item Env:\BUNDLE_JOBS -ErrorAction SilentlyContinue } else { $env:BUNDLE_JOBS = $prevJobs }
     }
     return [pscustomobject]@{
         ExitCode = $LASTEXITCODE
@@ -355,8 +396,14 @@ if ($LASTEXITCODE -eq 0) {
     if ($result.ExitCode -ne 0) {
         Write-ErrStep "gems" "bundle install failed (exit $($result.ExitCode))."
         Write-Host ""
-        Write-Host "  This usually means a native extension (sqlite3, bindex, etc.) couldn't compile." -ForegroundColor Yellow
-        Write-Host "  Try the following in a fresh PowerShell window, then re-run start-dev.bat:" -ForegroundColor Yellow
+        Write-Host "  Common causes on Windows:" -ForegroundColor Yellow
+        Write-Host "    - psych: missing libyaml (yaml.h) — install MSYS2 package libyaml, then bundle again." -ForegroundColor Yellow
+        Write-Host "    - pacman: stale lock file — close all MSYS2 terminals, then remove db.lck (see below)." -ForegroundColor Yellow
+        Write-Host "    - other native gems (sqlite3, bindex): MSYS2 toolchain incomplete." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  Try in a fresh PowerShell (repo folder), then re-run start-dev.bat:" -ForegroundColor Yellow
+        Write-Host "    ridk exec bash -lc `"rm -f /var/lib/pacman/db.lck && pacman -Syu --noconfirm`"" -ForegroundColor Yellow
+        Write-Host "    ridk exec bash -lc `"pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-libyaml`"" -ForegroundColor Yellow
         Write-Host "    ridk exec bash -lc `"pacman-key --init`"" -ForegroundColor Yellow
         Write-Host "    ridk exec bash -lc `"pacman-key --populate msys2`"" -ForegroundColor Yellow
         Write-Host "    ridk install 3" -ForegroundColor Yellow
