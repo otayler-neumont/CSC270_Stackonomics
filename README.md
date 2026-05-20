@@ -21,6 +21,17 @@ form. This is our team's project for CSC270, built up phase by phase.
 | Database         | SQLite 3                               |
 | Web server       | Puma                                   |
 
+## Quick start (Windows)
+
+If you just want to run the app, double-click **`start-dev.bat`** in the
+repo root. It handles the full install (Ruby + DevKit, MSYS2 keyring,
+gems, database, Tailwind) and then launches the server. On a clean
+machine the first run takes 5-15 minutes; after that it just starts the
+server in a few seconds. Open <http://localhost:3000> when you see
+`[web] * Listening on http://127.0.0.1:3000`, and press **Ctrl+C** in
+the window to stop. If anything goes wrong, follow the step-by-step
+instructions below.
+
 ## How to set it up - from scratch on Windows
 
 These are the exact steps to take a clean Windows machine all the way to

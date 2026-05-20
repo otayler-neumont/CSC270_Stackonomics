@@ -54,6 +54,65 @@ function Write-Info     { param([string]$L,[string]$M) Write-Step $L $M "Cyan"  
 function Write-WarnStep { param([string]$L,[string]$M) Write-Step $L $M "Yellow" }
 function Write-ErrStep  { param([string]$L,[string]$M) Write-Step $L $M "Red"    }
 
+function Format-StreamLine {
+    # Cleans one raw line from a child process so spinner / progress-bar
+    # noise (winget '|/-\', pacman '[####  ]', bundler dots) doesn't fill
+    # the launcher window with thousands of single-char "lines". Returns
+    # the cleaned line for display, or $null to drop it entirely.
+    param([string]$Line)
+    if ($null -eq $Line) { return $null }
+
+    # When a tool repaints a single line in place via carriage returns
+    # (e.g. "|`r/`r-`r\"), PowerShell may hand us the whole repaint
+    # sequence as one pipeline item. Keep only the LAST non-empty
+    # segment - that's the final painted state.
+    $latest = $null
+    foreach ($seg in ($Line -split "`r")) {
+        if (-not [string]::IsNullOrWhiteSpace($seg)) { $latest = $seg }
+    }
+    if ($null -eq $latest) { return $null }
+
+    $trimmed = $latest.Trim()
+    if ($trimmed -eq "") { return $null }
+
+    # Pure ASCII spinner frames: just |, /, \, - (1-3 chars).
+    if ($trimmed -match '^[|/\\-]{1,3}$') { return $null }
+
+    # pacman / bundler progress bars: [####     ], [==>     ], etc.
+    if ($trimmed -match '\[[#=>\-\s]{4,}\]') { return $null }
+
+    # Block / braille glyph spinners (winget Unicode UI, npm-style dots)
+    # with no actual letters in them. Ranges below cover the whole Unicode
+    # Block Elements block (U+2580-U+259F) and the whole Braille Patterns
+    # block (U+2800-U+28FF). Written as \uXXXX escapes so this file stays
+    # pure ASCII (Windows PowerShell 5.1 defaults to a non-UTF-8 codepage
+    # on most machines and would otherwise misread the literal glyphs).
+    if ($trimmed -notmatch '[A-Za-z]' -and $trimmed -match '[\u2580-\u259F\u2800-\u28FF]') { return $null }
+
+    # Bare percentage or byte-count tickers ("42%", "1.5 MB", "1234 KiB").
+    if ($trimmed -match '^\s*\d+(\.\d+)?\s*(%|B|KB|MB|GB|kB|KiB|MiB|GiB)?\s*$') { return $null }
+
+    return $latest
+}
+
+function Write-StreamLines {
+    # Pipeline-friendly wrapper: filters spinner / progress noise via
+    # Format-StreamLine, then writes what's left with the given indent +
+    # color. Drop-in replacement for `ForEach-Object { Write-Host "  $_" }`.
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline = $true)] $InputObject,
+        [string]$Color  = "DarkGray",
+        [string]$Indent = "  "
+    )
+    process {
+        $line = Format-StreamLine ([string]$InputObject)
+        if ($null -ne $line) {
+            Write-Host "$Indent$line" -ForegroundColor $Color
+        }
+    }
+}
+
 function Refresh-Path {
     # Pull the current Machine + User PATH from the registry so this session
     # picks up Ruby (or anything else) we just installed without needing a
@@ -139,7 +198,7 @@ function Install-RubyViaWinget {
         & winget install --id $WingetPackageId -e --silent `
             --architecture x64 `
             --accept-package-agreements --accept-source-agreements `
-            --scope user 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+            --scope user 2>&1 | Write-StreamLines
         if ($LASTEXITCODE -ne 0) {
             Write-WarnStep "ruby" "winget exited with code $LASTEXITCODE - falling back to direct download."
             return $false
@@ -270,7 +329,7 @@ function Invoke-Msys2 {
     # invocations of pacman-key, pacman, etc. fail with "not recognized".
     # Wrapping the command in `bash -lc "..."` loads MSYS2's login env.
     param([string]$Cmd)
-    & ridk exec bash -lc $Cmd 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    & ridk exec bash -lc $Cmd 2>&1 | Write-StreamLines
     return $LASTEXITCODE
 }
 
@@ -319,7 +378,7 @@ function Test-Toolchain {
 function Invoke-RidkInstall {
     # 1 = MSYS2 base, 3 = MSYS2 + MINGW dev toolchain. The non-interactive
     # form takes a space-separated list as positional args.
-    & ridk install 1 3 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    & ridk install 1 3 2>&1 | Write-StreamLines
     return $LASTEXITCODE
 }
 
@@ -431,7 +490,7 @@ if ($bundlerInstalled) {
     Write-Ok "bundler" "Bundler already installed."
 } else {
     Write-Info "bundler" "Installing Bundler..."
-    & gem install bundler --no-document 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    & gem install bundler --no-document 2>&1 | Write-StreamLines
     if ($LASTEXITCODE -ne 0) {
         Write-ErrStep "bundler" "Bundler install failed (exit $LASTEXITCODE)."
         exit 4
@@ -455,8 +514,13 @@ function Invoke-BundleInstall {
     $captured = New-Object System.Text.StringBuilder
     try {
         & bundle install 2>&1 | ForEach-Object {
-            Write-Host "  $_" -ForegroundColor DarkGray
-            [void]$captured.AppendLine([string]$_)
+            $raw = [string]$_
+            # Keep the raw text in $captured so the keyring-error scanner
+            # below can pattern-match against the unfiltered output...
+            [void]$captured.AppendLine($raw)
+            # ...but only show the spinner-cleaned version to the user.
+            $line = Format-StreamLine $raw
+            if ($null -ne $line) { Write-Host "  $line" -ForegroundColor DarkGray }
         }
     } finally {
         if ($null -eq $prevJobs) { Remove-Item Env:\BUNDLE_JOBS -ErrorAction SilentlyContinue } else { $env:BUNDLE_JOBS = $prevJobs }
@@ -480,8 +544,8 @@ if ($LASTEXITCODE -eq 0) {
     # present (we install them in Step 3d, but better to skip the compile
     # entirely if we can).
     Write-Info "bundler-cfg" "Configuring bundler to prefer precompiled Windows gems..."
-    & bundle config set --local force_ruby_platform false 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-    & bundle lock --add-platform x64-mingw-ucrt 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    & bundle config set --local force_ruby_platform false 2>&1 | Write-StreamLines
+    & bundle lock --add-platform x64-mingw-ucrt 2>&1 | Write-StreamLines
 
     Write-Info "gems" "Running bundle install (this can take a few minutes the first time)..."
     $result = Invoke-BundleInstall
@@ -535,7 +599,7 @@ if ($needDb) {
 } else {
     Write-Info "database" "Running db:prepare (idempotent - applies any pending migrations)..."
 }
-& ruby bin\rails db:prepare 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+& ruby bin\rails db:prepare 2>&1 | Write-StreamLines
 if ($LASTEXITCODE -ne 0) {
     Write-ErrStep "database" "db:prepare failed (exit $LASTEXITCODE)."
     exit 6
@@ -551,7 +615,7 @@ if ((Test-Path $cssPath) -and ((Get-Item $cssPath).Length -gt 0)) {
     Write-Ok "css" "Tailwind CSS already built."
 } else {
     Write-Info "css" "Building Tailwind CSS for the first time..."
-    & ruby bin\rails tailwindcss:build 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+    & ruby bin\rails tailwindcss:build 2>&1 | Write-StreamLines
     if ($LASTEXITCODE -ne 0) {
         Write-WarnStep "css" "tailwindcss:build exited with $LASTEXITCODE - continuing; the watcher will retry."
     } else {

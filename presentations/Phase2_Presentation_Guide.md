@@ -11,38 +11,7 @@ changed in Phase 2 (the API integration) and how to demo it cleanly.
 
 ---
 
-## 1. Roles
-
-| Role         | Who   | What they do                                                                 |
-| ------------ | ----- | ---------------------------------------------------------------------------- |
-| **Driver**   | _TBD_ | Mouse + keyboard. Clicks through pages, opens files in Cursor, reloads to show live data changing. |
-| **Narrator** | _TBD_ | Walks through what just happened on screen and ties it back to the rubric.   |
-
-Same swap pattern as Phase 1: Narrator owns the intro and "what's new",
-Driver takes voice during the code tour.
-
----
-
-## 2. The timeline
-
-Phase 2 doesn't have an explicit time limit in the rubric, but plan for
-about 4-5 minutes so we leave headroom for questions.
-
-| Time        | Section                  | Who      | Beats                                                                        |
-| ----------- | ------------------------ | -------- | ---------------------------------------------------------------------------- |
-| 0:00 – 0:20 | Recap                    | Narrator | "Phase 1 was a static sample app. Phase 2 introduces dynamic content via 3rd-party APIs." |
-| 0:20 – 0:40 | What we picked & why     | Narrator | Two APIs: MineralFYI (gems) + USGS MRDS (mines). Both public, no auth, both fit our theme. |
-| 0:40 – 2:30 | Live demo               | Driver   | Open `/gems`, reload twice to show different spotlights. Open `/mines`, reload to show different commodities. (see §4) |
-| 2:30 – 4:00 | Code tour                | Driver   | Service objects → controller wiring → view conditionals. (see §5)            |
-| 4:00 – 4:30 | Resilience               | Driver   | Disconnect from the network and reload `/mines`. Page still renders with an "API unreachable" banner. (see §6) |
-| 4:30 – 5:00 | Wrap & what's next       | Narrator | Phase 3 hook (auth + persistence), thanks, take questions.                   |
-
-If the demo gods are unkind and the network is flaky, **swap §4 and §6**:
-show the graceful-failure path first, then bring it back.
-
----
-
-## 3. The API choices - what to actually say
+## 1. The API choices - what to actually say
 
 **One-line pitch:**
 > "Phase 2 asked us to make a page dynamic by talking to a 3rd-party API.
@@ -78,7 +47,7 @@ show the graceful-failure path first, then bring it back.
 
 ---
 
-## 4. Demo flow - page by page
+## 2. Demo flow - page by page
 
 ### `/gems` - Live spotlight from MineralFYI (≈ 50 s)
 
@@ -105,12 +74,19 @@ show the graceful-failure path first, then bring it back.
 - *"We picked one of seven commodities at random server-side - gold, copper,
   silver, iron, diamond, zinc, or lead - and asked USGS for matching mine
   records. Reload to see a different commodity each time."*
-- **Reload once.** Commodity in the headline changes. Point out:
-  - The **hits count badge** next to the commodity name.
+- **Reload a few times.** Each reload picks a different random commodity
+  server-side, and *every* reload renders instantly. Point out:
+  - The **hits count badge** next to the commodity name (changes per reload).
   - **One row in the table.** Pick anything: *"Real mine, real state,
     real status (Past Producer / Prospect / Current), real GPS coordinates
     pulled from the USGS catalog. Click the USGS ID column to jump to the
     upstream record page."*
+  - *"USGS's own server takes 10-22 seconds to answer one of these
+    queries - we measured it. The reason the page is snappy is that a
+    background thread on server boot pre-fetches all 7 commodities into
+    `Rails.cache`, so every request reads from process memory instead of
+    hitting the wire. We'll show that in the code in a minute (see §3,
+    steps 3 and 6)."*
 - **(Optional)** Click a USGS ID link to show the upstream USGS record page
   opens in a new tab - confirms the data isn't fabricated.
 
@@ -119,14 +95,19 @@ requirement. **Total: ~1 minute 40 seconds of demo.**
 
 ---
 
-## 5. Code tour - what to actually click
+## 3. Code tour - what to actually click
 
 Stay shallow. Same principle as Phase 1.
 
 1. **`app/services/api_client.rb`** (~20 s)
    - *"Our shared HTTP helper. `Net::HTTP` with a 4-second open timeout and
-     8-second read timeout, plus rescue blocks that log a warning and return
+     30-second read timeout, plus rescue blocks that log a warning and return
      nil on any error. Every API call goes through here."*
+   - The 30-second read timeout looks generous on purpose - we measured the
+     USGS endpoint at 2-22 seconds depending on the commodity, so 30s gives
+     even the slowest one (iron) clean headroom. End users almost never wait
+     this long because the cache warmer (see step 6) populates Rails.cache
+     before the first request arrives.
 
 2. **`app/services/mineral_fyi_service.rb`** (~25 s)
    - Point at **`GEM_SLUGS`** - *"Mapping each of our 12 jewelry-trade names
@@ -137,10 +118,39 @@ Stay shallow. Same principle as Phase 1.
      functions. No state. Caller gives us a gem name, we give back a
      plain hash or nil."*
 
-3. **`app/services/usgs_mines_service.rb`** (~25 s)
-   - Point at **`search_by_name`** - hits the USGS search endpoint, gets
-     back XML, and `parse_search_results` uses Ruby's stdlib REXML to walk
-     it into hashes.
+3. **`app/services/usgs_mines_service.rb`** (~50 s) - *the caching story*
+   - Point at the **`COMMODITIES`** constant. *"This is the canonical list
+     of commodities we rotate through on /mines. It lives on the service
+     (not the controller) because the boot-time warmer needs the same
+     list - single source of truth."*
+   - Point at **`search_by_name`**. Walk through the three blocks:
+     1. **Cache check** at the top. `Rails.cache.read(cache_key)` - if
+        this commodity is in the cache, return it instantly without
+        touching the network.
+     2. **HTTP call** in the middle - hits the USGS search endpoint, gets
+        back XML, and `parse_search_results` uses Ruby's stdlib REXML to walk
+        it into hashes.
+     3. **Cache write** at the bottom - `Rails.cache.write(..., expires_in:
+        CACHE_TTL)` on any successful HTTP response. We deliberately do
+        **not** write on HTTP failure (the `return [] if body.nil?` line
+        skips the write), so a transient outage doesn't lock us into an
+        empty banner for the full hour - but we *do* cache legitimately
+        empty results (e.g. zinc returns 0 matches) so the random commodity
+        picker can land on any of the 7 and still serve from memory.
+   - Point at **`warm_cache!`** below `find`. *"This is what the
+     initializer (step 6) calls on boot. It just walks `COMMODITIES` and
+     calls `search_by_name` for each one - same code path the controller
+     uses, so we know we're warming exactly what users will request."*
+   - *"We did this because the USGS endpoint is honestly slow - we
+     measured copper at 13 seconds, iron at 22 seconds. Without caching,
+     every page load paid the full cost and four of our seven commodities
+     consistently timed out. With a one-hour TTL in `Rails.cache` (which is
+     a `:memory_store` in development - see
+     `config/environments/development.rb`) plus boot-time warming, request
+     time is essentially network-free."*
+   - Optional aside: *"`Rails.logger.info` lines on cache HIT/MISS - if you
+     watch the server window during the demo, you'll see every page load
+     log a cache HIT because the warmer already populated all 7 entries."*
    - Mention **`find`** - GeoJSON detail endpoint, returns a single full
      record. We don't use it on the page today but it's there for any
      follow-up phase that wants per-mine drilldowns.
@@ -160,27 +170,54 @@ Stay shallow. Same principle as Phase 1.
      success, we render the rich spotlight. On failure, we render an honest
      'API unavailable' banner. Either way, the user gets a working page."*
 
+6. **`config/initializers/usgs_cache_warmer.rb`** (~30 s) - *the boot warmer*
+   - Walk the file top to bottom; it's intentionally short.
+   - Point at the **two guard clauses** at the top: *"We bail out in test
+     (tests forbid real network calls) and we only run when `Rails::Server`
+     is defined - so `rails console`, `db:migrate`, asset precompile, etc.
+     don't trigger a 70-second warm. Only the actual web server does."*
+   - Point at **`Rails.application.config.after_initialize` +
+     `Thread.new`**. *"After Rails finishes booting, we kick off a
+     background thread that calls `UsgsMinesService.warm_cache!`. The
+     server is already accepting requests at this point - the warmer just
+     runs alongside. Worst case for a user who hits /mines in the first
+     few seconds after boot is the original slow uncached experience; from
+     then on every request is a cache hit."*
+   - *"Errors inside the thread are rescued and logged - a network blip
+     at boot must never crash the server."*
+
 ---
 
-## 6. Bonus: showing the graceful-failure path
+## 4. Bonus: showing the graceful-failure path
 
-If we have time and the demo is going well, this is the closer.
+If we have time and the demo is going well, this is the closer. Use the
+**gems** page here, not the mines page - the gems page has no cache layer,
+so an offline reload deterministically hits the failure path.
 
-1. Open the **mines page** so the network call has already happened and the
-   page is rendered with live data.
+1. Open the **gems page** so the MineralFYI call has already happened and
+   the page is rendered with the live spotlight.
 2. **Disconnect Wi-Fi.** (Or turn airplane mode on. Or unplug the ethernet.)
 3. **Reload the page.**
-4. Same chrome, same curated mines below, but the live section now shows
-   an amber "Live USGS data unavailable" banner with a plain-English
-   explanation. No stack trace. No 500. **No runtime error.**
-5. **Reconnect**, reload, live data returns.
+4. Same chrome, same curated cards below, but the spotlight section now
+   shows an amber "API unavailable" banner with a plain-English explanation.
+   No stack trace. No 500. **No runtime error.**
+5. **Reconnect**, reload, live spotlight returns.
 
 That demonstrates the "no runtime errors" rubric line - the page doesn't
 just *work*, it works *even when the dependency it relies on is broken*.
 
+**Bonus bonus** (if you want to show off the cache + warmer too): repeat
+the demo on the **mines page**. With Wi-Fi off, reload as many times as you
+like - **every random commodity still loads with real data**. That's the
+boot-time warmer working in your favor: all 7 commodities were fetched
+into `Rails.cache` before the server ever started serving requests, so an
+upstream USGS outage (or your laptop going offline) is invisible to users
+for the full one-hour TTL. The graceful-failure banner is the gems-page
+story; the cache-survives-an-outage banner is the mines-page story.
+
 ---
 
-## 7. The wrap-up - what's next
+## 5. The wrap-up - what's next
 
 > "Phase 2 added dynamic external data. Phase 3 introduces persistence and
 > authentication: we'll add user accounts, let logged-in users save

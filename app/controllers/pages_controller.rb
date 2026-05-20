@@ -78,16 +78,16 @@ class PagesController < ApplicationController
     @metals_by_group = METALS.group_by { |m| m[:group] }
   end
 
-  # Commodity names that USGS MRDS actually indexes well. We rotate through
-  # them so each page load shows a different slice of real mine data.
-  USGS_COMMODITIES = %w[gold copper silver iron diamond zinc lead].freeze
-
   def mines
     @mines_by_region = MINES.group_by { |m| m[:region] }
 
     # Phase 2: query the USGS Mineral Resources Data System for live mine
-    # records matching one of the commodities above. Returns [] on failure.
-    @usgs_commodity = USGS_COMMODITIES.sample
+    # records matching one of the commodities the service knows about.
+    # The commodity is picked at random per request so each reload shows a
+    # different slice of real mine data; the cache (warmed at boot - see
+    # config/initializers/usgs_cache_warmer.rb) makes every choice fast.
+    # Returns [] on any unrecoverable failure.
+    @usgs_commodity = UsgsMinesService::COMMODITIES.sample
     @usgs_records   = UsgsMinesService.search_by_name(@usgs_commodity, limit: 10)
     @api_source     = {
       name: "USGS Mineral Resources Data System",

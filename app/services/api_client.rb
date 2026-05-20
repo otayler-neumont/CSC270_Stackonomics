@@ -7,8 +7,15 @@ require "json"
 # failure mode: returns `nil` on any network/parse error so callers can
 # decide how to degrade gracefully. Errors are logged for visibility.
 class ApiClient
-  OPEN_TIMEOUT = 4   # seconds to establish TCP/TLS
-  READ_TIMEOUT = 8   # seconds to receive the full response body
+  OPEN_TIMEOUT = 4    # seconds to establish TCP/TLS
+  READ_TIMEOUT = 30   # seconds to receive the full response body
+  # USGS MRDS routinely takes 10-22s to respond to a single search (we
+  # measured iron at 22s on a cold cache). The 30s ceiling gives every
+  # commodity in the rotation enough headroom to succeed on its first
+  # (uncached) hit while still bailing on a truly hung dependency.
+  # Users almost never pay this cost - the cache warmer (see
+  # config/initializers/usgs_cache_warmer.rb) populates Rails.cache for
+  # every commodity at boot, so request-time hits read from memory.
 
   class << self
     # GET the URL and return the raw response body string, or nil on
