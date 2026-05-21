@@ -1,0 +1,111 @@
+<% content_for :title, "Specimen · Bedrock" %>
+
+<%= render "api_client" %>
+<%= render "breadcrumb", back_label: "All specimens", back_path: specimens_path %>
+
+<section id="specimen-loading" class="max-w-6xl mx-auto px-6 py-12">
+  <div class="flex items-center gap-3 text-slate-600">
+    <span class="inline-block w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
+    <span>Loading specimen #<%= @specimen_id %>…</span>
+  </div>
+</section>
+
+<section id="specimen-content" class="hidden">
+  <div id="specimen-hero" class="border-b border-stone-200"></div>
+
+  <div class="max-w-6xl mx-auto px-6 py-10">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2 space-y-6">
+        <article class="rounded-xl bg-white shadow-md ring-1 ring-stone-200 overflow-hidden">
+          <div class="px-6 py-4 bg-stone-50 border-b border-stone-100">
+            <h2 class="text-sm font-bold uppercase tracking-[0.12em] text-slate-500">Field data</h2>
+          </div>
+          <dl id="specimen-fields" class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6"></dl>
+        </article>
+
+        <article id="specimen-fact-card" class="hidden rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-stone-100 shadow-lg p-6 ring-1 ring-slate-700">
+          <h2 class="text-sm font-bold uppercase tracking-[0.12em] text-amber-300/90">Field note</h2>
+          <p id="specimen-fact" class="mt-3 text-lg leading-relaxed text-stone-200 italic"></p>
+        </article>
+      </div>
+
+      <aside class="space-y-4">
+        <div class="rounded-xl bg-white shadow-md ring-1 ring-stone-200 p-5 sticky top-6">
+          <h2 class="text-sm font-bold uppercase tracking-[0.12em] text-slate-500">Actions</h2>
+          <div id="specimen-actions" class="mt-4 flex flex-col gap-2"></div>
+          <a id="json-link" href="/api/specimens/<%= @specimen_id %>" target="_blank" rel="noopener"
+             class="mt-4 block text-center text-xs text-slate-500 hover:text-amber-700 underline decoration-dotted">
+            Open raw JSON ↗
+          </a>
+        </div>
+
+        <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200/80 p-5 text-sm text-amber-950">
+          <p class="font-semibold">API endpoint</p>
+          <code class="mt-2 block text-xs bg-white/70 px-2 py-1.5 rounded ring-1 ring-amber-200/60 break-all">GET /api/specimens/<%= @specimen_id %></code>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<script>
+  (async function() {
+    const id = "<%= @specimen_id %>";
+    const loading = document.getElementById("specimen-loading");
+    const content = document.getElementById("specimen-content");
+
+    function field(label, value, wide) {
+      return '<div class="' + (wide ? 'sm:col-span-2' : '') + '">' +
+        '<dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">' + label + '</dt>' +
+        '<dd class="mt-1 text-lg font-medium text-slate-900">' + value + '</dd></div>';
+    }
+
+    try {
+      const s = await BedrockApi.fetchJson("/api/specimens/" + id);
+      const style = BedrockApi.tintStyle(s.tint);
+
+      document.getElementById("specimen-hero").innerHTML =
+        '<div class="bg-gradient-to-br ' + style.bg + ' relative overflow-hidden">' +
+          '<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.25),transparent_60%)]"></div>' +
+          '<div class="max-w-6xl mx-auto px-6 py-12 sm:py-16 flex flex-col sm:flex-row items-center gap-8 relative">' +
+            '<div class="shrink-0">' + BedrockApi.gemSvg(s.tint, "w-28 h-28 sm:w-36 sm:h-36") + '</div>' +
+            '<div class="text-center sm:text-left">' +
+              '<span class="inline-block text-[11px] font-semibold uppercase tracking-[0.18em] ' + style.badge + ' px-3 py-1 rounded-full">' + escapeHtml(s.tint || "slate") + ' tint</span>' +
+              '<h1 class="mt-3 text-4xl sm:text-5xl font-extrabold text-slate-900 drop-shadow-sm">' + escapeHtml(s.name) + '</h1>' +
+              '<p class="mt-2 text-lg text-slate-800/90">' + escapeHtml(s.color || "Color not recorded") + '</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+      document.getElementById("specimen-fields").innerHTML =
+        field("Mohs hardness", s.mohs != null ? s.mohs + ' <span class="text-sm font-normal text-slate-500">/ 10</span>' : "—", false) +
+        field("Origin", escapeHtml(s.origin || "—"), false) +
+        field("Color", escapeHtml(s.color || "—"), true) +
+        '<div class="sm:col-span-2">' + BedrockApi.mohsMeter(s.mohs) + '</div>';
+
+      if (s.fact) {
+        document.getElementById("specimen-fact").textContent = '"' + s.fact + '"';
+        document.getElementById("specimen-fact-card").classList.remove("hidden");
+      }
+
+      document.getElementById("specimen-actions").innerHTML =
+        '<a href="/specimens/' + id + '/edit" class="w-full text-center px-4 py-2.5 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition">Edit specimen</a>' +
+        '<a href="/specimens/delete/' + id + '" class="w-full text-center px-4 py-2.5 rounded-lg bg-red-50 ring-1 ring-red-200 text-red-800 font-semibold hover:bg-red-100 transition">Delete</a>' +
+        '<a href="/specimens" class="w-full text-center px-4 py-2.5 rounded-lg ring-1 ring-stone-200 text-slate-700 font-medium hover:bg-stone-50 transition">Back to collection</a>';
+
+      loading.classList.add("hidden");
+      content.classList.remove("hidden");
+      document.title = escapeHtml(s.name) + " · Bedrock";
+    } catch (err) {
+      loading.innerHTML = '<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">' + escapeHtml(err.message) + '</div>';
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  })();
+</script>

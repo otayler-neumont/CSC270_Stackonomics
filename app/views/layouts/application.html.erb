@@ -45,6 +45,7 @@
           <%= link_to "Gems",   gems_path,   class: "#{nav_link_class} #{active_class if current_page?(gems_path)}" %>
           <%= link_to "Metals", metals_path, class: "#{nav_link_class} #{active_class if current_page?(metals_path)}" %>
           <%= link_to "Mines",  mines_path,  class: "#{nav_link_class} #{active_class if current_page?(mines_path)}" %>
+          <%= link_to "Collection", specimens_path, class: "#{nav_link_class} #{active_class if request.path.start_with?('/specimens')}" %>
         </nav>
       </div>
     </header>

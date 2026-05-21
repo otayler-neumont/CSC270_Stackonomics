@@ -10,7 +10,7 @@
 #   inflect.uncountable %w( fish sheep )
 # end
 
-# These inflection rules are supported but not enabled by default:
-# ActiveSupport::Inflector.inflections(:en) do |inflect|
-#   inflect.acronym "RESTful"
-# end
+# "specimen" pluralizes to "specimen" by default; our table is `specimens`.
+ActiveSupport::Inflector.inflections(:en) do |inflect|
+  inflect.irregular "specimen", "specimens"
+end

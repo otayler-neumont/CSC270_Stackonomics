@@ -1,13 +1,18 @@
 # Stackonomics - CSC270
 
-A small Ruby on Rails web app called **Bedrock**: a four-page reference site
-about gems, metals, and the mines they come from, plus a demo tip-submission
-form. This is our team's project for CSC270, built up phase by phase.
+A small Ruby on Rails web app called **Bedrock**: a reference site about gems,
+metals, and mines, plus a **Specimen Collection** with a REST API and CRUD UI
+(Phase 3). This is our team's CSC270 project (**Stackonomics**), built phase
+by phase.
 
 | Phase   | What it adds                                                             | Status |
 | ------- | ------------------------------------------------------------------------ | ------ |
 | Phase 1 | Stack choice + static sample app (Home, Gems, Metals, Mines, tip form)   | Done (tagged `phase-1`) |
-| Phase 2 | Dynamic content from two public APIs (USGS MRDS + MineralFYI)            | **Current** |
+| Phase 2 | Dynamic content from two public APIs (USGS MRDS + MineralFYI)            | Done |
+| Phase 3 | REST API + CRUD UI for **Specimens** (SQLite, `/api/specimens`, Collection pages) | **Current** |
+
+**Phase 3 docs:** technical change log in [`docs/PHASE3_NOTES.md`](docs/PHASE3_NOTES.md);
+demo script in [`presentations/Phase3_Presentation_Guide.md`](presentations/Phase3_Presentation_Guide.md).
 
 ## What's in the stack
 
@@ -152,7 +157,7 @@ When you see a line like:
 ```
 
 the app is ready. Open <http://localhost:3000> in your browser. Use the
-top navigation (Home / Gems / Metals / Mines) to visit the four pages,
+top navigation (Home / Gems / Metals / Mines / Collection) to browse the site,
 and try the demo tip form at the bottom of the home page.
 
 To stop the server, press **Ctrl+C** in the PowerShell window where you
@@ -186,13 +191,54 @@ the corresponding step from the setup section above and try again.
 | Gems         | `/gems`          | A **live spotlight gem** fetched from MineralFYI on page load, the Mohs hardness scale, and 12 curated gem cards |
 | Metals       | `/metals`        | 15 metals as periodic-table tiles, grouped Precious / Base / Light & Strategic             |
 | Mines        | `/mines`         | A **live table of real US mine records** pulled from the USGS MRDS database on page load, plus 10 curated landmark mines grouped by region |
-| Tip form     | `POST /tips`     | Demo form. Submitting flashes a notice; nothing is actually saved. Will be wired up to a real database in a later phase. |
+| Collection   | `/specimens`     | Phase 3 CRUD over **specimens** stored in SQLite; the browser calls the JSON API below |
 
-Most page data still lives as Ruby constants in
-`app/controllers/pages_controller.rb`. The new live sections on `/gems` and
-`/mines` come from public APIs at request time - see **Phase 2: live API
-integration** below. All imagery is hand-rolled inline SVG inside the ERB
-templates - no external image files.
+| Tip form     | `POST /tips`     | Demo form on Home. Submits a flash notice only; not persisted yet. |
+
+### Phase 3 — REST API + Specimen Collection
+
+Phase 3 adds **our own** REST API and database (unlike Phase 2, which called
+external APIs). Record type: **Specimens** — mineral entries stored in SQLite,
+with a browser UI that loads and saves through the JSON endpoints.
+
+**Architecture (short):** Rails serves HTML shells (`SpecimensController`) and
+a JSON API (`Api::SpecimensController`). Pages use `fetch("/api/specimens…")`
+with the CSRF token from the layout. See [`docs/PHASE3_NOTES.md`](docs/PHASE3_NOTES.md)
+for file list, inflection fix, and demo checklist.
+
+| Method | URL | Action |
+| ------ | --- | ------ |
+| `GET` | `/api/specimens` | List all specimens |
+| `GET` | `/api/specimens/:id` | Get one specimen |
+| `POST` | `/api/specimens` | Create (JSON body: `{ "specimen": { "name": "...", ... } }`) |
+| `PATCH` | `/api/specimens/:id` | Update |
+| `DELETE` | `/api/specimens/:id` | Delete |
+
+| Page | URL | How it works |
+| ---- | --- | ------------ |
+| List | `/specimens` | `GET /api/specimens` → card grid |
+| Detail | `/specimens/:id` | `GET /api/specimens/:id` |
+| New | `/specimens/new` | `POST /api/specimens` |
+| Edit (bonus) | `/specimens/:id/edit` | `PATCH /api/specimens/:id` |
+| Delete confirm | `/specimens/delete/:id` | `DELETE /api/specimens/:id` |
+
+**Database:** `storage/development.sqlite3` · model `Specimen` · seed data in
+`db/seeds.rb` (six starter gems). `start-dev.bat` runs **`db:migrate`** then
+**`db:seed`** on every launch (seed is idempotent).
+
+Manual DB commands:
+
+```powershell
+ruby bin\rails db:migrate
+ruby bin\rails db:seed
+```
+
+**Submission zip:** zip the repo root as `TeamName_Rails_Phase3.zip` (use your
+team identifier). Demo script: [`presentations/Phase3_Presentation_Guide.md`](presentations/Phase3_Presentation_Guide.md).
+
+**Content elsewhere:** Phase 1–2 catalog pages still use Ruby constants in
+`app/controllers/pages_controller.rb`. `/gems` and `/mines` also call external
+APIs at request time (Phase 2). Imagery is inline SVG in ERB — no stock photos.
 
 ## Phase 2: live API integration
 
@@ -222,21 +268,41 @@ upstream API is down.
 
 ```
 Stackonomics/
-|-- app/                 # the Rails application
-|   |-- controllers/     # PagesController has the four page actions and tip form
-|   |-- views/           # ERB templates for each page + shared layout
-|   `-- assets/          # Tailwind input CSS + compiled output
-|-- bin/                 # Ruby launcher scripts (rails, dev, setup, ...)
-|-- config/              # Rails configuration (routes.rb, database.yml, ...)
-|-- db/                  # database schema (empty in Phase 1, no migrations yet)
-|-- storage/             # SQLite database file lives here once db:prepare runs
-|-- start-dev.bat        # one-click launcher (only runs the server, see above)
-|-- Gemfile              # Ruby gem dependencies
-`-- README.md            # this file
+|-- app/
+|   |-- controllers/
+|   |   |-- pages_controller.rb      # Home, Gems, Metals, Mines, tip form
+|   |   |-- specimens_controller.rb  # Phase 3 HTML shells (no server-side rows)
+|   |   `-- api/
+|   |       `-- specimens_controller.rb  # Phase 3 JSON CRUD
+|   |-- models/specimen.rb
+|   |-- views/pages/                 # Phase 1–2 catalog pages
+|   |-- views/specimens/             # Phase 3 collection UI + API client JS
+|   |-- services/                    # Phase 2 external API clients
+|   `-- assets/                      # Tailwind input + compiled CSS
+|-- bin/                             # rails, dev, setup, ...
+|-- config/routes.rb                 # catalog routes + api/specimens + /specimens/*
+|-- db/
+|   |-- migrate/                     # create_specimens
+|   |-- schema.rb
+|   `-- seeds.rb
+|-- docs/PHASE3_NOTES.md             # Phase 3 change log
+|-- presentations/
+|   |-- Phase1_Presentation_Guide.md
+|   |-- Phase2_Presentation_Guide.md
+|   `-- Phase3_Presentation_Guide.md
+|-- scripts/setup-and-run.ps1        # migrate + seed + launch (used by start-dev.bat)
+|-- storage/                         # development.sqlite3
+|-- start-dev.bat
+`-- README.md
 ```
 
 ## Troubleshooting
 
+- **`Could not find table 'specimen'` during seed/migrate.** Rails pluralized
+  `Specimen` as `specimen` instead of `specimens`. The repo fixes this in
+  `config/initializers/inflections.rb`. Run `db:migrate` again after pulling.
+- **`db:prepare` fails but migrate works.** Use `db:migrate` then `db:seed`
+  (what `start-dev.bat` does) instead of `db:prepare` alone.
 - **`ruby` is not recognized.** You either skipped Step 1 or didn't open
   a fresh PowerShell window after installing Ruby. Close every command
   window, open a new PowerShell, and try again.

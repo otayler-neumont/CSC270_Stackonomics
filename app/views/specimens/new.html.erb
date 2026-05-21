@@ -1,0 +1,65 @@
+<% content_for :title, "New specimen · Bedrock" %>
+
+<%= render "api_client" %>
+<%= render "breadcrumb", back_label: "All specimens", back_path: specimens_path %>
+
+<%= render "page_hero",
+      badge_text: "New entry",
+      badge_classes: "text-emerald-800 bg-emerald-100 ring-1 ring-emerald-300/60",
+      title: "Add a specimen",
+      subtitle: "Creates a record via <code class=\"text-sm bg-stone-200/80 px-1.5 py-0.5 rounded\">POST /api/specimens</code>.".html_safe %>
+
+<section class="max-w-6xl mx-auto px-6 pb-16">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 -mt-4">
+    <div class="lg:col-span-2">
+      <div class="rounded-xl bg-white shadow-lg ring-1 ring-stone-200 p-6 sm:p-8">
+        <%= render "form" %>
+      </div>
+    </div>
+
+    <aside class="space-y-4">
+      <div class="rounded-xl bg-slate-900 text-stone-100 p-6 shadow-lg ring-1 ring-slate-700">
+        <h2 class="text-sm font-bold uppercase tracking-[0.12em] text-amber-300">Tips</h2>
+        <ul class="mt-4 space-y-3 text-sm text-stone-300 leading-relaxed list-disc list-inside">
+          <li>Mohs runs from 1 (talc) to 10 (diamond).</li>
+          <li>Card tint only affects how the specimen appears in the UI.</li>
+          <li>Field notes show on the detail page in the dark quote panel.</li>
+        </ul>
+      </div>
+      <div class="rounded-xl bg-amber-50 ring-1 ring-amber-200/80 p-5 text-sm">
+        <p class="font-semibold text-amber-950">Request body</p>
+        <pre class="mt-2 text-xs bg-white/80 p-3 rounded-lg ring-1 ring-amber-200/60 overflow-x-auto text-slate-800">{ "specimen": { "name": "…", … } }</pre>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<script>
+  document.getElementById("specimen-form").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const errorEl = document.getElementById("form-error");
+    errorEl.classList.add("hidden");
+
+    const payload = {
+      specimen: {
+        name: document.getElementById("name").value,
+        color: document.getElementById("color").value,
+        mohs: document.getElementById("mohs").value || null,
+        origin: document.getElementById("origin").value,
+        tint: document.getElementById("tint").value,
+        fact: document.getElementById("fact").value
+      }
+    };
+
+    try {
+      const created = await BedrockApi.fetchJson("/api/specimens", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      window.location.href = "/specimens/" + created.id;
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove("hidden");
+    }
+  });
+</script>

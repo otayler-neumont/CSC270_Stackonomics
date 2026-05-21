@@ -1,0 +1,76 @@
+<script>
+  window.BedrockTints = <%= raw specimen_tints_json %>;
+
+  window.BedrockApi = {
+    csrfToken() {
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      return meta ? meta.content : "";
+    },
+
+    async fetchJson(path, options = {}) {
+      const headers = Object.assign(
+        { "Accept": "application/json", "Content-Type": "application/json" },
+        options.headers || {}
+      );
+
+      if (options.method && options.method !== "GET") {
+        headers["X-CSRF-Token"] = this.csrfToken();
+      }
+
+      const response = await fetch(path, Object.assign({}, options, { headers }));
+
+      if (response.status === 204) return null;
+
+      const body = await response.json().catch(function() { return {}; });
+
+      if (!response.ok) {
+        throw new Error(body.error || ("Request failed (" + response.status + ")"));
+      }
+
+      return body;
+    },
+
+    tintStyle(tint) {
+      return BedrockTints[tint] || BedrockTints.slate;
+    },
+
+    tintBadgeClass(tint) {
+      return this.tintStyle(tint).badge;
+    },
+
+    gemSvg(tint, sizeClass) {
+      const s = this.tintStyle(tint);
+      const sizes = sizeClass || "w-20 h-20 sm:w-24 sm:h-24";
+      return '<svg viewBox="0 0 64 64" class="' + sizes + ' drop-shadow" aria-hidden="true">' +
+        '<polygon points="32,6 56,26 32,58 8,26" fill="' + s.fill + '" stroke="' + s.line + '" stroke-width="1.2"/>' +
+        '<polyline points="8,26 32,34 56,26" fill="none" stroke="' + s.line + '" stroke-width="1"/>' +
+        '<line x1="20" y1="14" x2="32" y2="34" stroke="' + s.line + '" stroke-width="0.8" opacity="0.7"/>' +
+        '<line x1="44" y1="14" x2="32" y2="34" stroke="' + s.line + '" stroke-width="0.8" opacity="0.7"/>' +
+        '<polygon points="20,14 32,6 44,14 32,26" fill="white" opacity="0.3"/>' +
+        '</svg>';
+    },
+
+    mohsMeter(mohs) {
+      if (mohs == null || mohs === "") return "";
+      const pct = Math.min(100, Math.max(0, (Number(mohs) / 10) * 100));
+      return '<div class="mt-3">' +
+        '<div class="flex justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-500">' +
+        '<span>Mohs hardness</span><span>' + mohs + ' / 10</span></div>' +
+        '<div class="mt-1 h-2 rounded-full bg-stone-200 overflow-hidden">' +
+        '<div class="h-full rounded-full bg-gradient-to-r from-stone-400 via-amber-400 to-amber-600" style="width:' + pct + '%"></div>' +
+        '</div></div>';
+    },
+
+    btnPrimary(label, href) {
+      return '<a href="' + href + '" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 text-white text-sm font-semibold shadow-sm hover:bg-amber-700 transition">' + label + '</a>';
+    },
+
+    btnGhost(label, href) {
+      return '<a href="' + href + '" class="inline-flex items-center px-3 py-1.5 rounded-md bg-stone-50 ring-1 ring-stone-200 text-slate-700 text-sm font-medium hover:bg-white transition">' + label + '</a>';
+    },
+
+    btnDanger(label, href) {
+      return '<a href="' + href + '" class="inline-flex items-center px-3 py-1.5 rounded-md bg-red-50 ring-1 ring-red-200 text-red-800 text-sm font-medium hover:bg-red-100 transition">' + label + '</a>';
+    }
+  };
+</script>

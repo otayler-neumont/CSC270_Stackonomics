@@ -10,11 +10,11 @@
 #   3. Run `ridk install 1 3` to set up the MSYS2 build toolchain
 #   3c. Install MSYS2 libyaml (headers for the psych gem / YAML)
 #   4. Install Bundler if missing, then `bundle install`
-#   5. `bin/rails db:prepare` if the SQLite DB is missing or pending migrations
+#   5. `bin/rails db:migrate` then `bin/rails db:seed` (migrate first; seed is idempotent)
 #   6. `bin/rails tailwindcss:build` if the compiled CSS is missing
 #   7. Hand off to `ruby bin/dev` (which runs web + tailwind watcher together)
 #
-# Warm-machine subsequent runs skip 2-6 and go straight to step 7.
+# Warm-machine subsequent runs skip 2-4 and 6 and go straight to 5b + 7.
 
 [CmdletBinding()]
 param(
@@ -595,16 +595,28 @@ if ($LASTEXITCODE -eq 0) {
 $dbPath = Join-Path $RepoRoot "storage\development.sqlite3"
 $needDb = -not (Test-Path $dbPath)
 if ($needDb) {
-    Write-Info "database" "Creating + migrating development database..."
-} else {
-    Write-Info "database" "Running db:prepare (idempotent - applies any pending migrations)..."
+    Write-Info "database" "Creating development database..."
+    & ruby bin\rails db:create 2>&1 | Write-StreamLines
+    if ($LASTEXITCODE -ne 0) {
+        Write-ErrStep "database" "db:create failed (exit $LASTEXITCODE)."
+        exit 6
+    }
 }
-& ruby bin\rails db:prepare 2>&1 | Write-StreamLines
+Write-Info "database" "Running db:migrate (applies pending migrations)..."
+& ruby bin\rails db:migrate 2>&1 | Write-StreamLines
 if ($LASTEXITCODE -ne 0) {
-    Write-ErrStep "database" "db:prepare failed (exit $LASTEXITCODE)."
+    Write-ErrStep "database" "db:migrate failed (exit $LASTEXITCODE)."
     exit 6
 }
-Write-Ok "database" "Database ready."
+Write-Ok "database" "Migrations applied."
+
+Write-Info "database" "Running db:seed (idempotent)..."
+& ruby bin\rails db:seed 2>&1 | Write-StreamLines
+if ($LASTEXITCODE -ne 0) {
+    Write-ErrStep "database" "db:seed failed (exit $LASTEXITCODE)."
+    exit 6
+}
+Write-Ok "database" "Seed data applied."
 
 # --------------------------------------------------------------------------
 # Step 7: ensure Tailwind CSS is built (so the first browser hit is styled)
