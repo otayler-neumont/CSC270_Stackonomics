@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby.exe
+#!/usr/bin/env ruby
 # Cross-platform development launcher for Bedrock / Stackonomics.
 #
 # Reads Procfile.dev and runs every "name: command" line as a child process,

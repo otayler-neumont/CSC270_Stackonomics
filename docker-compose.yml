@@ -1,0 +1,38 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - RAILS_ENV=development
+      - SECRET_KEY_BASE=stackonomics-docker-development-secret-key
+    volumes:
+      - .:/rails
+      - bundle:/usr/local/bundle
+    working_dir: /rails
+    command: ./bin/rails server -b 0.0.0.0
+    networks:
+      - default
+  db:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - default
+
+volumes:
+  bundle:
+  postgres_data:
+    driver: local 
+networks:
+  default:
+    driver: bridge
