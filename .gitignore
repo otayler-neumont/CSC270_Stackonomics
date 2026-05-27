@@ -92,6 +92,7 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+!.env.*.example
 *.pem
 *.key
 !config/credentials/*.key.example
@@ -168,6 +169,22 @@ Icon
 # ---------------------------------------------------------------------------
 # PowerPoint, Word, Excel temp lock files (e.g. ~$Stackanomics.pptx).
 ~$*
+
+# ---------------------------------------------------------------------------
+# Terraform (infra/terraform/)
+# ---------------------------------------------------------------------------
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan*
+crash.log
+crash.*.log
+# .terraform.lock.hcl is intentionally tracked (HashiCorp recommends it).
+# Real tfvars stay local; only the example is tracked.
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
 
 # ---------------------------------------------------------------------------
 # Misc

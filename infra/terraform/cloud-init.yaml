@@ -1,0 +1,76 @@
+#cloud-config
+# Bootstrap for an Oracle Cloud Ubuntu 22.04 ARM VM running Stackonomics.
+#
+# What this does (in order):
+#   1. Installs Docker CE + the compose plugin from Docker's official repo.
+#   2. Punches a hole in the in-VM iptables for port 80 and persists it.
+#      (OCI's Ubuntu images ship with a default-deny INPUT chain - very
+#      easy to forget about and the #1 reason "why isn't my port open?")
+#   3. Clones the public Stackonomics repo into /opt/app.
+#   4. Generates a random SECRET_KEY_BASE and POSTGRES_PASSWORD into
+#      /opt/app/.env.production (mode 0600, owned by ubuntu).
+#   5. Builds the production image and starts the compose stack detached.
+
+package_update: true
+package_upgrade: false
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+  - iptables-persistent
+
+write_files:
+  - path: /opt/bootstrap.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euxo pipefail
+
+      ARCH="$(dpkg --print-architecture)"
+      CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+
+      # --- Docker CE + Compose plugin --------------------------------------
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      echo "deb [arch=$${ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $${CODENAME} stable" \
+        > /etc/apt/sources.list.d/docker.list
+      apt-get update -y
+      apt-get install -y docker-ce docker-ce-cli containerd.io \
+        docker-buildx-plugin docker-compose-plugin
+      systemctl enable --now docker
+      usermod -aG docker ubuntu
+
+      # --- Open port 80 in the in-VM firewall ------------------------------
+      # OCI Ubuntu cloud images have a default-deny INPUT chain. The security
+      # list opens it at the network edge; this opens it on the host.
+      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT || true
+      netfilter-persistent save || true
+
+      # --- Clone the app ---------------------------------------------------
+      mkdir -p /opt/app
+      chown ubuntu:ubuntu /opt/app
+      sudo -u ubuntu git clone --branch '${git_branch}' '${git_repo_url}' /opt/app
+
+      # --- Generate production secrets -------------------------------------
+      SECRET_KEY_BASE="$(openssl rand -hex 64)"
+      POSTGRES_PASSWORD="$(openssl rand -hex 16)"
+      cat > /opt/app/.env.production <<EOF
+      SECRET_KEY_BASE=$${SECRET_KEY_BASE}
+      POSTGRES_PASSWORD=$${POSTGRES_PASSWORD}
+      EOF
+      chown ubuntu:ubuntu /opt/app/.env.production
+      chmod 0600 /opt/app/.env.production
+
+      # --- Build & run -----------------------------------------------------
+      cd /opt/app
+      docker compose -f docker-compose.prod.yml --env-file .env.production \
+        up -d --build
+
+runcmd:
+  - [ bash, /opt/bootstrap.sh ]
+
+final_message: "Stackonomics bootstrap finished after $UPTIME seconds."

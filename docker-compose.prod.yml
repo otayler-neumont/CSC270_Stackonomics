@@ -1,0 +1,50 @@
+# Production compose file used by the OCI VM (see infra/terraform/).
+# Pulls secrets from .env.production (generated on the VM by cloud-init).
+# Web is published on port 80 directly; Postgres stays on the internal network.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Default (final, production) stage of the multi-stage Dockerfile
+    image: stackonomics-web:prod
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "80:3000"
+    environment:
+      RAILS_ENV: production
+      RAILS_LOG_TO_STDOUT: "true"
+      RAILS_SERVE_STATIC_FILES: "true"
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required}
+      DATABASE_URL: postgres://stackonomics:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/stackonomics_production
+    networks:
+      - internal
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stackonomics
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: stackonomics_production
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stackonomics -d stackonomics_production"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  internal:
+    driver: bridge
