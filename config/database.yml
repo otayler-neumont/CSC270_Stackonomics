@@ -25,6 +25,11 @@ test:
 # stay on SQLite without needing libpq locally.
 production:
   adapter: postgresql
-  url: <%= ENV.fetch("DATABASE_URL") %>
+  # ENV["..."] (vs ENV.fetch) returns nil instead of raising when unset, so
+  # `rails assets:precompile` at Docker build time doesn't blow up trying
+  # to parse this file just because DATABASE_URL isn't injected yet. The
+  # adapter only connects when it's actually used at runtime, and at that
+  # point docker-compose has DATABASE_URL set from the env file.
+  url: <%= ENV["DATABASE_URL"] %>
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   encoding: unicode
