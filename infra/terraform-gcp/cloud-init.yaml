@@ -1,0 +1,85 @@
+#cloud-config
+# Bootstrap for a GCP e2-micro Ubuntu 22.04 VM running Stackonomics.
+#
+# Key difference vs. the OCI cloud-init: e2-micro only has 1 GB RAM, which
+# is not enough to run `bundle install` + bootsnap precompile + Tailwind
+# build during `docker compose up --build`. We add a 2 GB swap file first
+# so the build can complete; runtime memory is fine afterwards (~300 MB
+# resident for Rails idle + Postgres).
+#
+# Steps in order:
+#   1. Add a 2 GB swap file (persisted via /etc/fstab).
+#   2. Install Docker CE + the compose plugin from Docker's official repo.
+#   3. Clone the public Stackonomics repo into /opt/app.
+#   4. Generate a random SECRET_KEY_BASE and POSTGRES_PASSWORD into
+#      /opt/app/.env.production (mode 0600).
+#   5. Build the production image and start the compose stack detached.
+
+package_update: true
+package_upgrade: false
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+
+write_files:
+  - path: /opt/bootstrap.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euxo pipefail
+
+      # --- 2 GB swap file (critical for 1 GB RAM e2-micro) -----------------
+      if [ ! -f /swapfile ]; then
+        fallocate -l 2G /swapfile
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        # Be a little more eager to use swap on a memory-tight box.
+        sysctl vm.swappiness=20
+        echo 'vm.swappiness=20' > /etc/sysctl.d/99-swappiness.conf
+      fi
+
+      # --- Docker CE + Compose plugin --------------------------------------
+      CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $${CODENAME} stable" \
+        > /etc/apt/sources.list.d/docker.list
+      apt-get update -y
+      apt-get install -y docker-ce docker-ce-cli containerd.io \
+        docker-buildx-plugin docker-compose-plugin
+      systemctl enable --now docker
+      usermod -aG docker ubuntu
+
+      # --- Clone the app ---------------------------------------------------
+      mkdir -p /opt/app
+      chown ubuntu:ubuntu /opt/app
+      sudo -u ubuntu git clone --branch '${git_branch}' '${git_repo_url}' /opt/app
+
+      # --- Generate production secrets -------------------------------------
+      SECRET_KEY_BASE="$(openssl rand -hex 64)"
+      POSTGRES_PASSWORD="$(openssl rand -hex 16)"
+      cat > /opt/app/.env.production <<EOF
+      SECRET_KEY_BASE=$${SECRET_KEY_BASE}
+      POSTGRES_PASSWORD=$${POSTGRES_PASSWORD}
+      EOF
+      chown ubuntu:ubuntu /opt/app/.env.production
+      chmod 0600 /opt/app/.env.production
+
+      # --- Build & run -----------------------------------------------------
+      # The build is the memory-tight part; expect ~10-15 min on e2-micro
+      # with heavy swap thrashing during bundle install / asset precompile.
+      cd /opt/app
+      docker compose -f docker-compose.prod.yml --env-file .env.production \
+        up -d --build
+
+runcmd:
+  - [ bash, /opt/bootstrap.sh ]
+
+final_message: "Stackonomics bootstrap finished after $UPTIME seconds."

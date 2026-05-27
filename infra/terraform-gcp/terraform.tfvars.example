@@ -1,0 +1,22 @@
+# Copy to terraform.tfvars and fill in your real values.
+# terraform.tfvars is gitignored; terraform.tfvars.example is tracked.
+
+# Find this in the GCP Console's top bar (NOT the project NUMBER).
+project_id = "your-project-id-here"
+
+# Absolute path to the service-account JSON key downloaded from
+# IAM & Admin -> Service Accounts -> <SA> -> Keys -> Add Key -> JSON
+credentials_file = "C:/Users/TKoAdmin/.gcp/stackonomics-tf-key.json"
+
+# Must stay in us-west1 / us-central1 / us-east1 for e2-micro to be free.
+# region = "us-central1"
+# zone   = "us-central1-a"
+
+# Paste contents of ~/.ssh/id_ed25519.pub (single line).
+ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
+
+# Tighten to your IP once the deploy is working.
+# allowed_ssh_cidr = "203.0.113.42/32"
+
+# git_repo_url = "https://github.com/otayler-neumont/CSC270_Stackonomics.git"
+# git_branch   = "phase4-docker"

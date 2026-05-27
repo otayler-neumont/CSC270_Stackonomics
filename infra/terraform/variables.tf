@@ -43,6 +43,12 @@ variable "instance_name" {
   default     = "stackonomics"
 }
 
+variable "availability_domain_index" {
+  description = "0-based index into the region's availability domains. us-phoenix-1 has 3 (AD-1, AD-2, AD-3); retry-apply.ps1 cycles this on each attempt."
+  type        = number
+  default     = 0
+}
+
 variable "shape" {
   description = "OCI shape. Default targets the Always-Free ARM Ampere A1 Flex tier."
   type        = string

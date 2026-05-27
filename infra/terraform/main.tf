@@ -14,7 +14,11 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 locals {
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  ad_count            = length(data.oci_identity_availability_domains.ads.availability_domains)
+  # Wrap the index into the available ADs so the retry loop can pass 0/1/2/0/1/2...
+  # without worrying about overshooting if some region has fewer ADs.
+  ad_index            = var.availability_domain_index % local.ad_count
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[local.ad_index].name
 
   common_tags = {
     "project" = "stackonomics"
