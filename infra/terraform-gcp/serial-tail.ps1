@@ -1,6 +1,14 @@
 # Fetch the GCP serial console output (boot/cloud-init log) via the
-# Compute Engine REST API. Uses Ruby (already on the box) for JWT signing
-# because Windows PowerShell 5.1's RSA class can't ImportFromPem.
+# Compute Engine REST API. Uses Ruby (already on the box) for JWT signing.
+#
+# Args:
+#   -Lines <n>   How many trailing lines to print (default 80, use 0 for ALL)
+#   -Grep <regex> Only print lines matching the regex
+
+param(
+    [int]$Lines = 80,
+    [string]$Grep
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -18,4 +26,12 @@ $url = "https://compute.googleapis.com/compute/v1/projects/$project/zones/$zone/
 $serial = Invoke-RestMethod -Method Get -Uri $url `
     -Headers @{ Authorization = "Bearer $accessToken" }
 
-($serial.contents -split "`r?`n") | Select-Object -Last 80 | ForEach-Object { $_ }
+$all = ($serial.contents -split "`r?`n")
+
+if ($Grep) {
+    $all | Where-Object { $_ -match $Grep } | ForEach-Object { $_ }
+} elseif ($Lines -le 0) {
+    $all | ForEach-Object { $_ }
+} else {
+    $all | Select-Object -Last $Lines | ForEach-Object { $_ }
+}
