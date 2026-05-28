@@ -1,41 +1,39 @@
 module Api
+  # All persistence goes through SpecimenRepository (the Phase 4 DAL).
+  # This controller is now responsible only for HTTP concerns:
+  # parsing params, choosing a status code, and rendering JSON.
+  # Any time you'd reach for Specimen.<something> here, add it to the
+  # repository instead.
   class SpecimensController < BaseController
-    before_action :set_specimen, only: %i[show update destroy]
-
-    # GET /api/specimens
+    # GET /api/specimens  ->  SpecimenRepository.all
     def index
-      specimens = Specimen.order(:name)
-      render json: specimens
+      render json: SpecimenRepository.all
     end
 
-    # GET /api/specimens/:id
+    # GET /api/specimens/:id  ->  SpecimenRepository.find(id)
     def show
-      render json: @specimen
+      render json: SpecimenRepository.find(params[:id])
     end
 
-    # POST /api/specimens
+    # POST /api/specimens  ->  SpecimenRepository.create(attrs)
     def create
-      specimen = Specimen.create!(specimen_params)
+      specimen = SpecimenRepository.create(specimen_params)
       render json: specimen, status: :created
     end
 
-    # PATCH/PUT /api/specimens/:id
+    # PATCH/PUT /api/specimens/:id  ->  SpecimenRepository.update(id, attrs)
     def update
-      @specimen.update!(specimen_params)
-      render json: @specimen
+      specimen = SpecimenRepository.update(params[:id], specimen_params)
+      render json: specimen
     end
 
-    # DELETE /api/specimens/:id
+    # DELETE /api/specimens/:id  ->  SpecimenRepository.destroy(id)
     def destroy
-      @specimen.destroy!
+      SpecimenRepository.destroy(params[:id])
       head :no_content
     end
 
     private
-
-    def set_specimen
-      @specimen = Specimen.find(params[:id])
-    end
 
     def specimen_params
       permitted = params.require(:specimen).permit(:name, :color, :mohs, :origin, :fact, :tint)
