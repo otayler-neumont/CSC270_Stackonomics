@@ -2,17 +2,20 @@
 
 A small Ruby on Rails web app called **Bedrock**: a reference site about gems,
 metals, and mines, plus a **Specimen Collection** with a REST API and CRUD UI
-(Phase 3). This is our team's CSC270 project (**Stackonomics**), built phase
-by phase.
+backed by a real database through an explicit data access layer. This is our
+team's CSC270 project (**Stackonomics**), built phase by phase.
 
 | Phase   | What it adds                                                             | Status |
 | ------- | ------------------------------------------------------------------------ | ------ |
 | Phase 1 | Stack choice + static sample app (Home, Gems, Metals, Mines, tip form)   | Done (tagged `phase-1`) |
 | Phase 2 | Dynamic content from two public APIs (USGS MRDS + MineralFYI)            | Done |
-| Phase 3 | REST API + CRUD UI for **Specimens** (SQLite, `/api/specimens`, Collection pages) | **Current** |
+| Phase 3 | REST API + CRUD UI for **Specimens** (`/api/specimens`, Collection pages) | Done |
+| Phase 4 | Persistence: Postgres (prod) / SQLite (dev) reached through a `SpecimenRepository` data access layer | **Current** |
 
-**Phase 3 docs:** technical change log in [`docs/PHASE3_NOTES.md`](docs/PHASE3_NOTES.md);
-demo script in [`presentations/Phase3_Presentation_Guide.md`](presentations/Phase3_Presentation_Guide.md).
+**Phase docs:** [`docs/PHASE3_NOTES.md`](docs/PHASE3_NOTES.md) (Phase 3
+technical change log) and [`docs/PHASE4_PERSISTENCE.md`](docs/PHASE4_PERSISTENCE.md)
+(Phase 4 DAL architecture + verification). Demo scripts live in
+[`presentations/`](presentations/).
 
 ## What's in the stack
 
@@ -23,7 +26,8 @@ demo script in [`presentations/Phase3_Presentation_Guide.md`](presentations/Phas
 | View layer       | Embedded Ruby (ERB)                    |
 | Styling          | Tailwind CSS 4 (via tailwindcss-rails) |
 | Asset pipeline   | Propshaft                              |
-| Database         | SQLite 3                               |
+| Database         | SQLite 3 (dev/test) · Postgres 16 (prod) |
+| Data access      | `SpecimenRepository` module (Phase 4 DAL) |
 | Web server       | Puma                                   |
 
 ## Quick start (Windows)
@@ -240,6 +244,56 @@ team identifier). Demo script: [`presentations/Phase3_Presentation_Guide.md`](pr
 `app/controllers/pages_controller.rb`. `/gems` and `/mines` also call external
 APIs at request time (Phase 2). Imagery is inline SVG in ERB — no stock photos.
 
+### Phase 4 — Persistence + Data Access Layer
+
+Phase 4 keeps the same five REST endpoints from Phase 3 but routes every read
+and write through an explicit **Data Access Layer (DAL)** instead of letting
+the controllers touch ActiveRecord directly. The DAL is a Ruby module,
+`SpecimenRepository`, that lives in [`app/repositories/specimen_repository.rb`](app/repositories/specimen_repository.rb).
+It is the only place in the codebase that calls `Specimen.<anything>`.
+
+**Architecture:**
+
+```
+HTTP -> Api::SpecimensController  ->  SpecimenRepository  ->  Specimen (AR)  ->  Postgres 16 (prod) / SQLite (dev)
+        (HTTP concerns only)         (the DAL: all DB calls)
+```
+
+**Route → DAL method mapping:**
+
+| Method   | URL                    | DAL call                              |
+| -------- | ---------------------- | ------------------------------------- |
+| `GET`    | `/api/specimens`       | `SpecimenRepository.all`              |
+| `GET`    | `/api/specimens/:id`   | `SpecimenRepository.find(id)`         |
+| `POST`   | `/api/specimens`       | `SpecimenRepository.create(attrs)`    |
+| `PATCH`  | `/api/specimens/:id`   | `SpecimenRepository.update(id, attrs)`|
+| `DELETE` | `/api/specimens/:id`   | `SpecimenRepository.destroy(id)`      |
+
+**Database:** development uses SQLite (`storage/development.sqlite3`); production
+uses Postgres 16 via `DATABASE_URL`. The configuration is in
+[`config/database.yml`](config/database.yml) and the production wiring lives
+in [`docker-compose.prod.yml`](docker-compose.prod.yml). Migrations and seeds
+run automatically on container startup through `bin/docker-entrypoint`
+(`rails db:prepare`), so persistence works end-to-end with no manual steps
+after a clean checkout.
+
+**Verifying the DAL end-to-end:** the repo ships a smoke test that round-trips
+a specimen through every CRUD endpoint and asserts each response:
+
+```powershell
+# against your local dev server
+.\scripts\dal-smoke.ps1
+
+# against any deployed instance
+.\scripts\dal-smoke.ps1 -BaseUrl http://<host-or-ip>
+```
+
+A passing run proves Controller → Repository → ActiveRecord → DB is healthy
+for `GET list`, `GET show`, `POST create`, `PATCH update`, `DELETE`, plus a
+404 check on the deleted row.
+
+Full architecture write-up: [`docs/PHASE4_PERSISTENCE.md`](docs/PHASE4_PERSISTENCE.md).
+
 ## Phase 2: live API integration
 
 Two pages now fetch dynamic content from public, credential-free APIs at
@@ -275,22 +329,30 @@ Stackonomics/
 |   |   `-- api/
 |   |       `-- specimens_controller.rb  # Phase 3 JSON CRUD
 |   |-- models/specimen.rb
+|   |-- repositories/                # Phase 4 data access layer
+|   |   `-- specimen_repository.rb   # the DAL - only place that calls Specimen.<...>
 |   |-- views/pages/                 # Phase 1–2 catalog pages
 |   |-- views/specimens/             # Phase 3 collection UI + API client JS
 |   |-- services/                    # Phase 2 external API clients
 |   `-- assets/                      # Tailwind input + compiled CSS
-|-- bin/                             # rails, dev, setup, ...
+|-- bin/                             # rails, dev, setup, docker-entrypoint, ...
 |-- config/routes.rb                 # catalog routes + api/specimens + /specimens/*
+|-- config/database.yml              # SQLite (dev/test) + Postgres (prod via DATABASE_URL)
 |-- db/
 |   |-- migrate/                     # create_specimens
 |   |-- schema.rb
 |   `-- seeds.rb
-|-- docs/PHASE3_NOTES.md             # Phase 3 change log
+|-- docker-compose.prod.yml          # Phase 4 production stack (web + Postgres)
+|-- docs/
+|   |-- PHASE3_NOTES.md              # Phase 3 change log
+|   `-- PHASE4_PERSISTENCE.md        # Phase 4 DAL + persistence write-up
 |-- presentations/
 |   |-- Phase1_Presentation_Guide.md
 |   |-- Phase2_Presentation_Guide.md
 |   `-- Phase3_Presentation_Guide.md
-|-- scripts/setup-and-run.ps1        # migrate + seed + launch (used by start-dev.bat)
+|-- scripts/
+|   |-- setup-and-run.ps1            # migrate + seed + launch (used by start-dev.bat)
+|   `-- dal-smoke.ps1                # Phase 4 CRUD smoke test
 |-- storage/                         # development.sqlite3
 |-- start-dev.bat
 `-- README.md
