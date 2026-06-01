@@ -1,0 +1,12 @@
+<% owner = specimen.user %>
+<% if owner %>
+  <%= link_to user_path(owner), class: "inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-amber-800 transition group/owner" do %>
+    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-amber-300 to-amber-600 text-slate-900 text-[10px] font-bold ring-1 ring-amber-300/50"><%= owner.initials %></span>
+    <span class="max-w-[7rem] truncate group-hover/owner:underline decoration-dotted"><%= owner.display_name %></span>
+  <% end %>
+<% else %>
+  <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400">
+    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-stone-200 text-stone-500 text-[10px] font-bold">?</span>
+    Unclaimed
+  </span>
+<% end %>

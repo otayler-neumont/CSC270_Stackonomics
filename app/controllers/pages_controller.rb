@@ -1,4 +1,6 @@
 class PagesController < ApplicationController
+  allow_unauthenticated_access
+
   GEMS = [
     { name: "Diamond",    mohs: 10.0, color: "Colorless / fancy",  origins: ["Botswana", "Russia (Yakutia)"],         fact: "Pure carbon - same element as graphite, just stacked differently.", tint: "slate" },
     { name: "Ruby",       mohs: 9.0,  color: "Red",                origins: ["Myanmar (Mogok)", "Mozambique"],         fact: "Red corundum colored by chromium. Trace iron tips it toward sapphire.", tint: "rose" },

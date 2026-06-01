@@ -1,82 +1,32 @@
 <% content_for :title, "Delete specimen · Bedrock" %>
+<% style = specimen_tint_style(@specimen.tint) %>
 
-<%= render "api_client" %>
-<%= render "breadcrumb", back_label: "All specimens", back_path: specimens_path %>
+<%= render "breadcrumb", back_label: "Back to specimen", back_path: specimen_path(@specimen) %>
 
 <section class="bg-gradient-to-b from-red-50 to-stone-50 border-b border-red-100">
   <div class="max-w-3xl mx-auto px-6 py-12 text-center">
     <span class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-red-100 ring-2 ring-red-200 text-red-700 text-2xl font-bold" aria-hidden="true">!</span>
     <h1 class="mt-4 text-3xl sm:text-4xl font-extrabold text-slate-900">Delete this specimen?</h1>
-    <p class="mt-3 text-slate-600 max-w-lg mx-auto">This action is permanent. The record will be removed from SQLite via the API.</p>
+    <p class="mt-3 text-slate-600 max-w-lg mx-auto">This permanently removes the record and its comments and likes from your collection.</p>
   </div>
 </section>
 
 <section class="max-w-lg mx-auto px-6 py-10 -mt-6">
-  <div id="delete-card" class="rounded-xl bg-white shadow-xl ring-1 ring-stone-200 overflow-hidden">
-    <div id="delete-card-header" class="h-28 bg-gradient-to-br from-stone-200 to-stone-400 flex items-center justify-center">
-      <span class="text-stone-500 text-sm">Loading…</span>
+  <div class="rounded-xl bg-white shadow-xl ring-1 ring-stone-200 overflow-hidden">
+    <div class="h-32 bg-gradient-to-br <%= style[:bg] %> flex items-center justify-center relative overflow-hidden">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.2),transparent)]"></div>
+      <%= specimen_gem_svg(@specimen.tint) %>
     </div>
     <div class="p-6 sm:p-8 text-center">
-      <p id="delete-target" class="text-lg font-semibold text-slate-900">Loading specimen…</p>
-      <p id="delete-meta" class="mt-2 text-sm text-slate-600"></p>
-      <p class="mt-4 text-xs text-slate-500 font-mono bg-stone-50 ring-1 ring-stone-200 rounded px-3 py-2 inline-block">
-        DELETE /api/specimens/<%= @specimen_id %>
-      </p>
+      <p class="text-lg font-semibold text-slate-900">Remove &ldquo;<%= @specimen.name %>&rdquo;?</p>
+      <p class="mt-2 text-sm text-slate-600"><%= [@specimen.color.presence, @specimen.origin.presence].compact.join(" · ") %></p>
 
       <div class="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-        <button id="confirm-delete" type="button" disabled
-          class="px-5 py-2.5 rounded-lg bg-red-600 text-white font-semibold shadow-md hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
-          Delete permanently
-        </button>
-        <a id="cancel-link" href="#" class="px-5 py-2.5 rounded-lg ring-1 ring-stone-300 bg-white text-slate-700 font-medium hover:bg-stone-50 transition text-center">
-          Keep specimen
-        </a>
+        <%= button_to "Delete permanently", specimen_path(@specimen), method: :delete,
+              class: "px-5 py-2.5 rounded-lg bg-red-600 text-white font-semibold shadow-md hover:bg-red-700 transition cursor-pointer" %>
+        <%= link_to "Keep specimen", specimen_path(@specimen),
+              class: "px-5 py-2.5 rounded-lg ring-1 ring-stone-300 bg-white text-slate-700 font-medium hover:bg-stone-50 transition text-center" %>
       </div>
-      <p id="delete-error" class="mt-4 text-sm text-red-700 hidden rounded-lg bg-red-50 border border-red-200 px-3 py-2" role="alert"></p>
     </div>
   </div>
 </section>
-
-<script>
-  (async function() {
-    const id = "<%= @specimen_id %>";
-    const target = document.getElementById("delete-target");
-    const meta = document.getElementById("delete-meta");
-    const header = document.getElementById("delete-card-header");
-    const confirmBtn = document.getElementById("confirm-delete");
-    const cancelLink = document.getElementById("cancel-link");
-    const errorEl = document.getElementById("delete-error");
-
-    cancelLink.href = "/specimens/" + id;
-
-    try {
-      const s = await BedrockApi.fetchJson("/api/specimens/" + id);
-      const style = BedrockApi.tintStyle(s.tint);
-
-      header.className = "h-32 bg-gradient-to-br " + style.bg + " flex items-center justify-center relative overflow-hidden";
-      header.innerHTML = '<div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.2),transparent)]"></div>' + BedrockApi.gemSvg(s.tint);
-      target.textContent = 'Remove “' + s.name + '”?';
-      meta.textContent = [s.color, s.origin].filter(Boolean).join(" · ");
-      confirmBtn.disabled = false;
-    } catch (err) {
-      target.textContent = err.message;
-      header.classList.add("hidden");
-    }
-
-    confirmBtn.addEventListener("click", async function() {
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = "Deleting…";
-      errorEl.classList.add("hidden");
-
-      try {
-        await BedrockApi.fetchJson("/api/specimens/" + id, { method: "DELETE" });
-        window.location.href = "/specimens?deleted=1";
-      } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.classList.remove("hidden");
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = "Delete permanently";
-      }
-    });
-  })();
-</script>

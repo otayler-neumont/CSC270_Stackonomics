@@ -1,0 +1,42 @@
+<% content_for :title, "Sign in · Bedrock" %>
+
+<%= render "specimens/page_hero",
+      badge_text: "Membership",
+      badge_classes: "text-amber-800 bg-amber-100 ring-1 ring-amber-300/60",
+      title: "Sign in",
+      subtitle: "Welcome back. Sign in to manage your collection, like specimens, and join the conversation." %>
+
+<section class="max-w-md mx-auto px-6 py-12">
+  <div class="rounded-xl bg-white shadow-lg ring-1 ring-stone-200 p-6 sm:p-8">
+    <% if alert = flash[:alert] %>
+      <p class="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" id="alert"><%= alert %></p>
+    <% end %>
+    <% if notice = flash[:notice] %>
+      <p class="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" id="notice"><%= notice %></p>
+    <% end %>
+
+    <%= form_with url: session_path, class: "space-y-5" do |form| %>
+      <div>
+        <label for="email_address" class="block text-sm font-semibold text-slate-800">Email</label>
+        <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username",
+              placeholder: "you@example.com", value: params[:email_address],
+              class: "mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 text-slate-900 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition" %>
+      </div>
+
+      <div>
+        <label for="password" class="block text-sm font-semibold text-slate-800">Password</label>
+        <%= form.password_field :password, required: true, autocomplete: "current-password",
+              placeholder: "Your password", maxlength: 72,
+              class: "mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 text-slate-900 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition" %>
+      </div>
+
+      <%= form.submit "Sign in",
+            class: "w-full inline-flex justify-center items-center px-5 py-2.5 rounded-lg bg-amber-600 text-white font-semibold shadow-md hover:bg-amber-700 transition cursor-pointer" %>
+    <% end %>
+
+    <p class="mt-6 text-center text-sm text-slate-600">
+      New to Bedrock?
+      <%= link_to "Create an account", new_registration_path, class: "font-semibold text-amber-700 hover:text-amber-900 underline decoration-dotted" %>
+    </p>
+  </div>
+</section>

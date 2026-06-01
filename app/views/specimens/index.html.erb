@@ -1,102 +1,55 @@
-<% content_for :title, "Specimen Collection · Bedrock" %>
+<% content_for :title, "Specimen Collections · Bedrock" %>
 
-<%= render "api_client" %>
+<% mine = @scope == "mine" && current_user %>
 
 <%= render "page_hero",
-      badge_text: "Phase 3 · Collection",
+      badge_text: "Phase 5 · Collections",
       badge_classes: "text-violet-800 bg-violet-100 ring-1 ring-violet-300/60",
-      title: "Specimen collection",
-      subtitle: "Curated mineral records stored in SQLite and served as JSON. Cards below are rendered in the browser via <code class=\"text-sm bg-stone-200/80 px-1.5 py-0.5 rounded\">GET /api/specimens</code>.".html_safe,
+      title: (mine ? "My collection" : "Community collections"),
+      subtitle: (mine ?
+        "Specimens you've catalogued. Add a new find, edit your notes, or see who's been liking your rocks.".html_safe :
+        "Every collector's specimens in one place. Browse what other members have found, like the standouts, and ask where they dug them up.".html_safe),
       actions: safe_join([
-        link_to("Add specimen", new_specimen_path, class: "inline-flex items-center px-4 py-2.5 rounded-lg bg-amber-600 text-white font-semibold shadow-md hover:bg-amber-700 transition"),
+        (current_user ? link_to("Add specimen", new_specimen_path, class: "inline-flex items-center px-4 py-2.5 rounded-lg bg-amber-600 text-white font-semibold shadow-md hover:bg-amber-700 transition") :
+          link_to("Sign in to add", new_session_path, class: "inline-flex items-center px-4 py-2.5 rounded-lg bg-amber-600 text-white font-semibold shadow-md hover:bg-amber-700 transition")),
         link_to("Raw JSON", "/api/specimens", target: "_blank", rel: "noopener", class: "inline-flex items-center px-4 py-2.5 rounded-lg bg-white ring-1 ring-stone-300 text-slate-800 font-medium hover:bg-stone-50 transition")
       ]) %>
 
 <section class="max-w-6xl mx-auto px-6 py-12">
-  <div class="flex items-end justify-between flex-wrap gap-3 mb-8">
+  <div class="flex items-end justify-between flex-wrap gap-4 mb-8">
     <div>
-      <h2 class="text-2xl font-bold text-slate-900">All specimens</h2>
-      <p class="mt-1 text-slate-600 text-sm">Click a card to view full details, edit, or remove.</p>
+      <h2 class="text-2xl font-bold text-slate-900"><%= mine ? "Your specimens" : "All specimens" %></h2>
+      <p class="mt-1 text-slate-600 text-sm">
+        <%= pluralize(@specimens.size, "specimen") %><%= " in your collection" if mine %>. Click a card for details, comments, and likes.
+      </p>
     </div>
-    <span id="specimen-count" class="hidden text-xs font-semibold uppercase tracking-wider text-slate-500 bg-stone-100 ring-1 ring-stone-200 px-3 py-1 rounded-full"></span>
+
+    <% if current_user %>
+      <div class="inline-flex rounded-lg ring-1 ring-stone-300 bg-white overflow-hidden text-sm font-semibold shadow-sm">
+        <%= link_to "Everyone", specimens_path,
+              class: "px-4 py-2 transition #{mine ? 'text-slate-600 hover:bg-stone-50' : 'bg-amber-600 text-white'}" %>
+        <%= link_to "Mine", specimens_path(scope: "mine"),
+              class: "px-4 py-2 transition border-l border-stone-200 #{mine ? 'bg-amber-600 text-white' : 'text-slate-600 hover:bg-stone-50'}" %>
+      </div>
+    <% end %>
   </div>
 
-  <div id="specimens-status" class="flex items-center gap-3 text-slate-600">
-    <span class="inline-block w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
-    <span>Loading specimens from the API…</span>
-  </div>
-
-  <div id="specimens-empty" class="hidden mt-8 rounded-xl border-2 border-dashed border-stone-300 bg-white/60 px-8 py-16 text-center">
-    <div class="mx-auto w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-2xl" aria-hidden="true">◇</div>
-    <h3 class="mt-4 text-lg font-bold text-slate-900">No specimens yet</h3>
-    <p class="mt-2 text-slate-600 max-w-md mx-auto">Add your first entry to populate the collection.</p>
-    <%= link_to "Add specimen", new_specimen_path, class: "mt-6 inline-flex items-center px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition" %>
-  </div>
-
-  <div id="specimens-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 hidden"></div>
+  <% if @specimens.any? %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <%= render partial: "specimen_card", collection: @specimens, as: :specimen %>
+    </div>
+  <% else %>
+    <div class="mt-8 rounded-xl border-2 border-dashed border-stone-300 bg-white/60 px-8 py-16 text-center">
+      <div class="mx-auto w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-2xl" aria-hidden="true">&#9671;</div>
+      <h3 class="mt-4 text-lg font-bold text-slate-900"><%= mine ? "Your collection is empty" : "No specimens yet" %></h3>
+      <p class="mt-2 text-slate-600 max-w-md mx-auto">
+        <%= mine ? "Add your first find to start your collection." : "Be the first to add a specimen to the community." %>
+      </p>
+      <% if current_user %>
+        <%= link_to "Add specimen", new_specimen_path, class: "mt-6 inline-flex items-center px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition" %>
+      <% else %>
+        <%= link_to "Sign in to add", new_session_path, class: "mt-6 inline-flex items-center px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition" %>
+      <% end %>
+    </div>
+  <% end %>
 </section>
-
-<script>
-  (async function() {
-    const status = document.getElementById("specimens-status");
-    const grid = document.getElementById("specimens-grid");
-    const empty = document.getElementById("specimens-empty");
-    const countEl = document.getElementById("specimen-count");
-
-    try {
-      const specimens = await BedrockApi.fetchJson("/api/specimens");
-
-      status.classList.add("hidden");
-
-      if (!specimens.length) {
-        empty.classList.remove("hidden");
-        return;
-      }
-
-      countEl.textContent = specimens.length + " record" + (specimens.length === 1 ? "" : "s");
-      countEl.classList.remove("hidden");
-      grid.classList.remove("hidden");
-
-      grid.innerHTML = specimens.map(function(s) {
-        const style = BedrockApi.tintStyle(s.tint);
-        const fact = s.fact ? ('<p class="mt-3 text-sm text-slate-600 italic leading-relaxed line-clamp-2">"' + escapeHtml(s.fact) + '"</p>') : "";
-
-        return '<article class="group bg-white rounded-xl border border-stone-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col">' +
-          '<a href="/specimens/' + s.id + '" class="block">' +
-            '<div class="bg-gradient-to-br ' + style.bg + ' flex items-center justify-center py-10 relative overflow-hidden">' +
-              '<div class="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.35),transparent_50%)]"></div>' +
-              BedrockApi.gemSvg(s.tint) +
-            '</div>' +
-          '</a>' +
-          '<div class="p-5 flex-1 flex flex-col">' +
-            '<div class="flex items-baseline justify-between gap-2">' +
-              '<h2 class="text-xl font-bold text-slate-900 group-hover:text-amber-800 transition"><a href="/specimens/' + s.id + '">' + escapeHtml(s.name) + '</a></h2>' +
-              '<span class="shrink-0 text-xs font-mono ' + style.badge + ' px-2 py-0.5 rounded-full">Mohs ' + (s.mohs != null ? s.mohs : "—") + '</span>' +
-            '</div>' +
-            '<dl class="mt-3 text-sm text-slate-600 space-y-1">' +
-              '<div><dt class="inline font-semibold text-slate-700">Color:</dt> <dd class="inline">' + escapeHtml(s.color || "—") + '</dd></div>' +
-              '<div><dt class="inline font-semibold text-slate-700">From:</dt> <dd class="inline">' + escapeHtml(s.origin || "—") + '</dd></div>' +
-            '</dl>' +
-            fact +
-            BedrockApi.mohsMeter(s.mohs) +
-            '<div class="mt-auto pt-4 flex flex-wrap gap-2">' +
-              BedrockApi.btnPrimary("View", "/specimens/" + s.id) +
-              BedrockApi.btnGhost("Edit", "/specimens/" + s.id + "/edit") +
-              BedrockApi.btnDanger("Delete", "/specimens/delete/" + s.id) +
-            '</div>' +
-          '</div>' +
-        '</article>';
-      }).join("");
-    } catch (err) {
-      status.innerHTML = '<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800"><strong>Could not load specimens.</strong> ' + escapeHtml(err.message) + '</div>';
-    }
-
-    function escapeHtml(str) {
-      return String(str)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-    }
-  })();
-</script>

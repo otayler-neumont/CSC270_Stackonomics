@@ -21,4 +21,36 @@ module SpecimensHelper
   def specimen_tints_json
     TINT_STYLES.transform_values { |v| v.merge(badge: v[:badge] + " ring-1") }.to_json
   end
+
+  # Server-rendered gem facet SVG (ported from the old client-side renderer so
+  # the collection works without JavaScript).
+  def specimen_gem_svg(tint, size_class = "w-20 h-20 sm:w-24 sm:h-24")
+    s = specimen_tint_style(tint)
+    tag.svg(viewBox: "0 0 64 64", class: "#{size_class} drop-shadow", "aria-hidden": true) do
+      safe_join([
+        tag.polygon(points: "32,6 56,26 32,58 8,26", fill: s[:fill], stroke: s[:line], "stroke-width": "1.2"),
+        tag.polyline(points: "8,26 32,34 56,26", fill: "none", stroke: s[:line], "stroke-width": "1"),
+        tag.line(x1: "20", y1: "14", x2: "32", y2: "34", stroke: s[:line], "stroke-width": "0.8", opacity: "0.7"),
+        tag.line(x1: "44", y1: "14", x2: "32", y2: "34", stroke: s[:line], "stroke-width": "0.8", opacity: "0.7"),
+        tag.polygon(points: "20,14 32,6 44,14 32,26", fill: "white", opacity: "0.3")
+      ])
+    end
+  end
+
+  # Mohs hardness meter (1-10). Returns nil when no value is recorded.
+  def specimen_mohs_meter(mohs)
+    return if mohs.blank?
+
+    pct = [[mohs.to_f / 10 * 100, 0].max, 100].min
+    tag.div(class: "mt-3") do
+      safe_join([
+        tag.div(class: "flex justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-500") do
+          safe_join([tag.span("Mohs hardness"), tag.span("#{mohs} / 10")])
+        end,
+        tag.div(class: "mt-1 h-2 rounded-full bg-stone-200 overflow-hidden") do
+          tag.div(class: "h-full rounded-full bg-gradient-to-r from-stone-400 via-amber-400 to-amber-600", style: "width:#{pct}%")
+        end
+      ])
+    end
+  end
 end

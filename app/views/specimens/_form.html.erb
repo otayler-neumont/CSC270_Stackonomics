@@ -1,23 +1,36 @@
-<form id="specimen-form" class="space-y-8">
+<%= form_with model: @specimen, id: "specimen-form", class: "space-y-8" do |form| %>
+  <% if @specimen.errors.any? %>
+    <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+      <p class="font-semibold"><%= pluralize(@specimen.errors.count, "error") %> prevented this specimen from saving:</p>
+      <ul class="mt-1 list-disc list-inside">
+        <% @specimen.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
   <fieldset class="space-y-5">
     <legend class="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 border-b border-stone-200 pb-2 w-full">Identity</legend>
 
     <div>
-      <label for="name" class="block text-sm font-semibold text-slate-800">Name <span class="text-red-600">*</span></label>
-      <input id="name" name="name" type="text" required placeholder="e.g. Tanzanite"
-        class="mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 text-slate-900 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition">
+      <%= form.label :name, class: "block text-sm font-semibold text-slate-800" do %>
+        Name <span class="text-red-600">*</span>
+      <% end %>
+      <%= form.text_field :name, required: true, placeholder: "e.g. Tanzanite",
+        class: "mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 text-slate-900 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition" %>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
       <div>
-        <label for="color" class="block text-sm font-semibold text-slate-800">Color</label>
-        <input id="color" name="color" type="text" placeholder="e.g. Violet-blue"
-          class="mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition">
+        <%= form.label :color, class: "block text-sm font-semibold text-slate-800" %>
+        <%= form.text_field :color, placeholder: "e.g. Violet-blue",
+          class: "mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition" %>
       </div>
       <div>
-        <label for="mohs" class="block text-sm font-semibold text-slate-800">Mohs hardness</label>
-        <input id="mohs" name="mohs" type="number" min="1" max="10" step="0.1" placeholder="1–10"
-          class="mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition">
+        <%= form.label :mohs, "Mohs hardness", class: "block text-sm font-semibold text-slate-800" %>
+        <%= form.number_field :mohs, min: 1, max: 10, step: 0.1, placeholder: "1–10",
+          class: "mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition" %>
       </div>
     </div>
   </fieldset>
@@ -26,20 +39,16 @@
     <legend class="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 border-b border-stone-200 pb-2 w-full">Provenance</legend>
 
     <div>
-      <label for="origin" class="block text-sm font-semibold text-slate-800">Origin</label>
-      <input id="origin" name="origin" type="text" placeholder="Country or mine district"
-        class="mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition">
+      <%= form.label :origin, class: "block text-sm font-semibold text-slate-800" %>
+      <%= form.text_field :origin, placeholder: "Country or mine district",
+        class: "mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition" %>
     </div>
 
     <div>
-      <label for="tint" class="block text-sm font-semibold text-slate-800">Card tint</label>
+      <%= form.label :tint, "Card tint", class: "block text-sm font-semibold text-slate-800" %>
       <p class="text-xs text-stone-500 mt-0.5">Controls the gradient on list and detail cards.</p>
-      <select id="tint" name="tint"
-        class="mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 shadow-sm focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition">
-        <% Specimen::TINTS.each do |tint| %>
-          <option value="<%= tint %>"><%= tint.capitalize %></option>
-        <% end %>
-      </select>
+      <%= form.select :tint, Specimen::TINTS.map { |t| [t.capitalize, t] }, {},
+        class: "mt-1.5 w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-2.5 shadow-sm focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition" %>
       <div id="tint-preview" class="mt-3 h-14 rounded-lg bg-gradient-to-br from-slate-200 to-slate-400 ring-1 ring-stone-200 shadow-inner"></div>
     </div>
   </fieldset>
@@ -47,30 +56,29 @@
   <fieldset class="space-y-5">
     <legend class="text-xs font-bold uppercase tracking-[0.15em] text-slate-500 border-b border-stone-200 pb-2 w-full">Field note</legend>
     <div>
-      <label for="fact" class="sr-only">Field note</label>
-      <textarea id="fact" name="fact" rows="4" placeholder="A short fact or observation about this specimen…"
-        class="w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-3 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition leading-relaxed"></textarea>
+      <%= form.label :fact, "Field note", class: "sr-only" %>
+      <%= form.text_area :fact, rows: 4, placeholder: "A short fact or observation about this specimen…",
+        class: "w-full rounded-lg border border-stone-300 bg-stone-50/50 px-4 py-3 shadow-sm placeholder:text-stone-400 focus:bg-white focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition leading-relaxed" %>
     </div>
   </fieldset>
 
-  <div id="form-error" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert"></div>
-
   <div class="flex flex-wrap gap-3 pt-2 border-t border-stone-100">
-    <button type="submit" class="inline-flex items-center px-5 py-2.5 rounded-lg bg-amber-600 text-white font-semibold shadow-md hover:bg-amber-700 hover:shadow-lg transition">
-      Save specimen
-    </button>
-    <%= link_to "Cancel", specimens_path, class: "inline-flex items-center px-5 py-2.5 rounded-lg ring-1 ring-stone-300 bg-white text-slate-700 font-medium hover:bg-stone-50 transition" %>
+    <%= form.submit (@specimen.persisted? ? "Save changes" : "Save specimen"),
+      class: "inline-flex items-center px-5 py-2.5 rounded-lg bg-amber-600 text-white font-semibold shadow-md hover:bg-amber-700 hover:shadow-lg transition cursor-pointer" %>
+    <%= link_to "Cancel", (@specimen.persisted? ? specimen_path(@specimen) : specimens_path),
+      class: "inline-flex items-center px-5 py-2.5 rounded-lg ring-1 ring-stone-300 bg-white text-slate-700 font-medium hover:bg-stone-50 transition" %>
   </div>
-</form>
+<% end %>
 
 <script>
   (function() {
-    const select = document.getElementById("tint");
+    const tints = <%= raw specimen_tints_json %>;
+    const select = document.getElementById("specimen_tint");
     const preview = document.getElementById("tint-preview");
-    if (!select || !preview || !window.BedrockTints) return;
+    if (!select || !preview) return;
 
     function updatePreview() {
-      const style = BedrockTints[select.value] || BedrockTints.slate;
+      const style = tints[select.value] || tints.slate;
       preview.className = "mt-3 h-14 rounded-lg bg-gradient-to-br " + style.bg + " ring-1 ring-stone-200 shadow-inner";
     }
 

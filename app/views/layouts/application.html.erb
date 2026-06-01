@@ -45,7 +45,21 @@
           <%= link_to "Gems",   gems_path,   class: "#{nav_link_class} #{active_class if current_page?(gems_path)}" %>
           <%= link_to "Metals", metals_path, class: "#{nav_link_class} #{active_class if current_page?(metals_path)}" %>
           <%= link_to "Mines",  mines_path,  class: "#{nav_link_class} #{active_class if current_page?(mines_path)}" %>
-          <%= link_to "Collection", specimens_path, class: "#{nav_link_class} #{active_class if request.path.start_with?('/specimens')}" %>
+          <%= link_to "Explore", specimens_path, class: "#{nav_link_class} #{active_class if request.path.start_with?('/specimens')}" %>
+
+          <span class="hidden sm:inline-block w-px h-6 bg-white/15 mx-1" aria-hidden="true"></span>
+
+          <% if current_user %>
+            <%= link_to "My Collection", user_path(current_user), class: "#{nav_link_class} #{active_class if current_page?(user_path(current_user))}" %>
+            <%= link_to user_path(current_user), class: "flex items-center gap-2 pl-2 pr-1 py-1 rounded-full hover:bg-white/10 transition" do %>
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 text-slate-900 text-[11px] font-bold ring-1 ring-amber-300/50"><%= current_user.initials %></span>
+              <span class="hidden sm:inline text-amber-200/90 text-xs font-semibold max-w-[8rem] truncate"><%= current_user.display_name %></span>
+            <% end %>
+            <%= button_to "Sign out", session_path, method: :delete, class: "#{nav_link_class} text-stone-300 hover:text-white" %>
+          <% else %>
+            <%= link_to "Sign in", new_session_path, class: nav_link_class %>
+            <%= link_to "Sign up", new_registration_path, class: "px-3 py-2 rounded-md bg-amber-600 text-white font-semibold hover:bg-amber-700 transition" %>
+          <% end %>
         </nav>
       </div>
     </header>
@@ -54,6 +68,14 @@
       <div class="max-w-6xl mx-auto w-full px-6 mt-4">
         <div class="rounded-md border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-900 shadow-sm">
           <%= notice %>
+        </div>
+      </div>
+    <% end %>
+
+    <% if alert.present? %>
+      <div class="max-w-6xl mx-auto w-full px-6 mt-4">
+        <div class="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-red-900 shadow-sm">
+          <%= alert %>
         </div>
       </div>
     <% end %>

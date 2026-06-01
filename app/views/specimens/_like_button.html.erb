@@ -1,0 +1,25 @@
+<%#
+  Like toggle. Logged-in users POST/DELETE the nested like resource; logged-out
+  visitors get a link to sign in. `size` is :sm (cards) or :lg (detail page).
+%>
+<% liked = specimen.liked_by?(current_user) %>
+<% count = specimen.likes.size %>
+<% pad = (size == :lg ? "px-4 py-2.5 text-base w-full justify-center" : "px-3 py-1.5 text-sm") %>
+<% heart = ('<svg viewBox="0 0 24 24" width="16" height="16" class="w-4 h-4 shrink-0" fill="' + (liked ? "currentColor" : "none") + '" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7.5-4.6-10-9.2C.6 8.9 2 5.5 5.2 5.1 7 4.9 8.7 5.9 9.6 7.4 10.5 5.9 12.2 4.9 14 5.1c3.2.4 4.6 3.8 3.2 6.7C19.5 16.4 12 21 12 21z"/></svg>').html_safe %>
+
+<% if current_user %>
+  <%= button_to specimen_like_path(specimen),
+        method: (liked ? :delete : :post),
+        aria: { label: liked ? "Unlike #{specimen.name}" : "Like #{specimen.name}" },
+        class: "inline-flex items-center gap-1.5 #{pad} rounded-md font-semibold transition shadow-sm #{liked ? 'bg-rose-100 text-rose-700 ring-1 ring-rose-300 hover:bg-rose-200' : 'bg-stone-50 text-slate-700 ring-1 ring-stone-200 hover:bg-white'}" do %>
+    <%= heart %>
+    <span><%= count %></span>
+  <% end %>
+<% else %>
+  <%= link_to new_session_path,
+        title: "Sign in to like",
+        class: "inline-flex items-center gap-1.5 #{pad} rounded-md font-semibold bg-stone-50 text-slate-500 ring-1 ring-stone-200 hover:bg-white transition" do %>
+    <%= heart %>
+    <span><%= count %></span>
+  <% end %>
+<% end %>

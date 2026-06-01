@@ -1,110 +1,32 @@
 <% content_for :title, "Edit specimen · Bedrock" %>
 
-<%= render "api_client" %>
-<%= render "breadcrumb", back_label: "Back to specimen", back_path: specimen_path(@specimen_id) %>
+<%= render "breadcrumb", back_label: "Back to specimen", back_path: specimen_path(@specimen) %>
 
 <%= render "page_hero",
       badge_text: "Edit",
       badge_classes: "text-sky-800 bg-sky-100 ring-1 ring-sky-300/60",
       title: "Edit specimen",
-      subtitle: "Updates via <code class=\"text-sm bg-stone-200/80 px-1.5 py-0.5 rounded\">PATCH /api/specimens/#{@specimen_id}</code>.".html_safe %>
+      subtitle: "Updating \u201C#{@specimen.name}\u201D in your collection.".html_safe %>
 
 <section class="max-w-6xl mx-auto px-6 pb-16">
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 -mt-4">
     <div class="lg:col-span-2">
       <div class="rounded-xl bg-white shadow-lg ring-1 ring-stone-200 p-6 sm:p-8">
-        <div id="form-loading" class="flex items-center gap-3 text-slate-600 py-8">
-          <span class="inline-block w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
-          <span>Loading current values…</span>
-        </div>
-        <div id="form-wrap" class="hidden">
-          <%= render "form" %>
-        </div>
+        <%= render "form" %>
       </div>
     </div>
 
     <aside>
-      <div id="edit-preview" class="rounded-xl bg-white shadow-md ring-1 ring-stone-200 overflow-hidden sticky top-6">
-        <div id="edit-preview-gradient" class="h-24 bg-gradient-to-br from-slate-200 to-slate-400 flex items-center justify-center">
-          <span class="text-stone-500 text-sm">Preview</span>
+      <div class="rounded-xl bg-white shadow-md ring-1 ring-stone-200 overflow-hidden sticky top-6">
+        <div class="h-28 bg-gradient-to-br <%= specimen_tint_style(@specimen.tint)[:bg] %> flex items-center justify-center">
+          <%= specimen_gem_svg(@specimen.tint, "w-16 h-16") %>
         </div>
         <div class="p-5">
-          <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Live preview</p>
-          <p id="edit-preview-name" class="mt-2 text-xl font-bold text-slate-900">—</p>
-          <p id="edit-preview-meta" class="mt-1 text-sm text-slate-600">—</p>
+          <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Current</p>
+          <p class="mt-2 text-xl font-bold text-slate-900"><%= @specimen.name %></p>
+          <p class="mt-1 text-sm text-slate-600"><%= [@specimen.color.presence, (@specimen.mohs ? "Mohs #{@specimen.mohs}" : nil)].compact.join(" · ").presence || "—" %></p>
         </div>
       </div>
     </aside>
   </div>
 </section>
-
-<script>
-  (async function() {
-    const id = "<%= @specimen_id %>";
-    const loading = document.getElementById("form-loading");
-    const wrap = document.getElementById("form-wrap");
-    const previewName = document.getElementById("edit-preview-name");
-    const previewMeta = document.getElementById("edit-preview-meta");
-    const previewGrad = document.getElementById("edit-preview-gradient");
-
-    function syncPreview() {
-      const tint = document.getElementById("tint").value;
-      const style = BedrockApi.tintStyle(tint);
-      previewGrad.className = "h-28 bg-gradient-to-br " + style.bg + " flex items-center justify-center";
-      previewGrad.innerHTML = BedrockApi.gemSvg(tint);
-      previewName.textContent = document.getElementById("name").value || "Untitled";
-      const color = document.getElementById("color").value;
-      const mohs = document.getElementById("mohs").value;
-      previewMeta.textContent = [color, mohs ? ("Mohs " + mohs) : null].filter(Boolean).join(" · ") || "—";
-    }
-
-    try {
-      const s = await BedrockApi.fetchJson("/api/specimens/" + id);
-      document.getElementById("name").value = s.name || "";
-      document.getElementById("color").value = s.color || "";
-      document.getElementById("mohs").value = s.mohs != null ? s.mohs : "";
-      document.getElementById("origin").value = s.origin || "";
-      document.getElementById("tint").value = s.tint || "slate";
-      document.getElementById("fact").value = s.fact || "";
-
-      loading.classList.add("hidden");
-      wrap.classList.remove("hidden");
-
-      ["name", "color", "mohs", "tint"].forEach(function(id) {
-        document.getElementById(id).addEventListener("input", syncPreview);
-        document.getElementById(id).addEventListener("change", syncPreview);
-      });
-      syncPreview();
-    } catch (err) {
-      loading.innerHTML = '<div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">' + err.message + '</div>';
-    }
-
-    document.getElementById("specimen-form").addEventListener("submit", async function(e) {
-      e.preventDefault();
-      const errorEl = document.getElementById("form-error");
-      errorEl.classList.add("hidden");
-
-      const payload = {
-        specimen: {
-          name: document.getElementById("name").value,
-          color: document.getElementById("color").value,
-          mohs: document.getElementById("mohs").value || null,
-          origin: document.getElementById("origin").value,
-          tint: document.getElementById("tint").value,
-          fact: document.getElementById("fact").value
-        }
-      };
-
-      try {
-        await BedrockApi.fetchJson("/api/specimens/" + id, {
-          method: "PATCH",
-          body: JSON.stringify(payload)
-        });
-        window.location.href = "/specimens/" + id;
-      } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.classList.remove("hidden");
-      }
-    });
-  })();
-</script>

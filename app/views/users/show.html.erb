@@ -1,0 +1,37 @@
+<% content_for :title, "#{@user.display_name} · Bedrock" %>
+<% is_me = current_user == @user %>
+
+<section class="bg-gradient-to-b from-stone-100 to-stone-50 border-b border-stone-200">
+  <div class="max-w-6xl mx-auto px-6 py-12 sm:py-14 flex flex-col sm:flex-row sm:items-center gap-6">
+    <span class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-700 text-slate-900 text-2xl font-extrabold ring-1 ring-amber-300/50 shadow-inner"><%= @user.initials %></span>
+    <div class="flex-1">
+      <span class="inline-block text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800 bg-amber-100 ring-1 ring-amber-300/60 px-3 py-1 rounded-full"><%= is_me ? "Your profile" : "Collector" %></span>
+      <h1 class="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900"><%= @user.display_name %></h1>
+      <p class="mt-2 text-slate-600 text-sm">
+        <%= pluralize(@specimens.size, "specimen") %> in collection · member since <%= @user.created_at.strftime("%B %Y") %>
+      </p>
+    </div>
+    <% if is_me %>
+      <%= link_to "Add specimen", new_specimen_path, class: "inline-flex items-center px-4 py-2.5 rounded-lg bg-amber-600 text-white font-semibold shadow-md hover:bg-amber-700 transition" %>
+    <% end %>
+  </div>
+</section>
+
+<section class="max-w-6xl mx-auto px-6 py-12">
+  <% if @specimens.any? %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <%= render partial: "specimens/specimen_card", collection: @specimens, as: :specimen %>
+    </div>
+  <% else %>
+    <div class="rounded-xl border-2 border-dashed border-stone-300 bg-white/60 px-8 py-16 text-center">
+      <div class="mx-auto w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center text-2xl" aria-hidden="true">&#9671;</div>
+      <h3 class="mt-4 text-lg font-bold text-slate-900"><%= is_me ? "Your collection is empty" : "Nothing here yet" %></h3>
+      <p class="mt-2 text-slate-600 max-w-md mx-auto">
+        <%= is_me ? "Add your first specimen to get started." : "#{@user.display_name} hasn't added any specimens yet." %>
+      </p>
+      <% if is_me %>
+        <%= link_to "Add specimen", new_specimen_path, class: "mt-6 inline-flex items-center px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 transition" %>
+      <% end %>
+    </div>
+  <% end %>
+</section>

@@ -1,18 +1,5 @@
 # Data Access Layer (DAL) for Specimen records.
 #
-# Phase 4 of the assignment asks for a layer between the controllers and
-# the database. In a Rails app, ActiveRecord already plays that role, but
-# the rubric calls for an explicit, named DAL that controllers go through,
-# so this module is that layer. The rule across the codebase is:
-#
-#     Controllers MUST NOT call `Specimen.<anything>` directly.
-#     Anything that needs to read or write specimens calls
-#     SpecimenRepository.<method> instead.
-#
-# Keeping persistence in one place makes it cheap later to add caching,
-# swap the backing store, or wrap every query in instrumentation without
-# touching the controllers.
-#
 # Errors are intentionally NOT rescued here -- the existing
 # `Api::BaseController` already has `rescue_from ActiveRecord::RecordNotFound`
 # and `rescue_from ActiveRecord::RecordInvalid` handlers that turn them
@@ -26,10 +13,27 @@ module SpecimenRepository
     Specimen.order(:name)
   end
 
+  # Index-friendly variant: eager-loads owner + likes/comments so the
+  # collection grid doesn't fire N+1 queries rendering badges and counts.
+  def all_with_associations
+    Specimen.includes(:user, :likes, :comments).order(:name)
+  end
+
+  # Specimens owned by a given user (their "collection"), newest first.
+  def for_user(user)
+    Specimen.includes(:user, :likes, :comments).for_user(user).order(created_at: :desc)
+  end
+
   # GET /api/specimens/:id  -> SpecimenRepository.find(id)
   # Raises ActiveRecord::RecordNotFound when no row matches.
   def find(id)
     Specimen.find(id)
+  end
+
+  # Detail page needs the owner and the full comment thread (with each
+  # comment's author) plus likers; eager-load them in one place.
+  def find_with_associations(id)
+    Specimen.includes(:user, :likes, comments: :user).find(id)
   end
 
   # POST /api/specimens  -> SpecimenRepository.create(attrs)
